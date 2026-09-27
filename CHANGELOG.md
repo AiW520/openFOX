@@ -1,3 +1,69 @@
+## 1.1.16 (2026-09-26)
+
+### 🚀 Features
+
+- add new Tuzi text models (#274) ([892e948b](https://github.com/ljquan/opentu/commit/892e948b))
+
+### 🩹 Fixes
+
+- 修复下载完成后提示持续转圈 (#276) ([15c4f972](https://github.com/ljquan/opentu/commit/15c4f972))
+- align MiniMax reference image limits (#275) ([cf7d8fff](https://github.com/ljquan/opentu/commit/cf7d8fff))
+
+### ❤️  Thank You
+
+- Liang <13642533686@163.com>
+- yk1125 <1160314789@qq.com>
+
+## 1.1.15 (2026-09-22)
+
+### 🚀 Features
+
+- 支持 MiniMax-H3 视频输入 (#273) ([7463586a](https://github.com/ljquan/opentu/commit/7463586a))
+
+### 🩹 Fixes
+
+- 修复等待执行循环 (#272) ([78a2848b](https://github.com/ljquan/opentu/commit/78a2848b))
+
+### ❤️  Thank You
+
+- Liang <13642533686@163.com>
+
+## 1.1.14 (2026-09-22)
+
+### 🚀 Features
+
+- add Tuzi postMessage onboarding ([c1f38717](https://github.com/ljquan/opentu/commit/c1f38717))
+
+### 🩹 Fixes
+
+- seedance2.0/2.5 的参数修复 ([8dfb2f7f](https://github.com/ljquan/opentu/commit/8dfb2f7f))
+- 为批量图片下载增加加载状态 ([d1b4f112](https://github.com/ljquan/opentu/commit/d1b4f112))
+- correct Image 2 and 2.5 sizes ([b150c4a9](https://github.com/ljquan/opentu/commit/b150c4a9))
+
+### 🔧 Chores
+
+- 修复：模型列表及数量获取问题修复 ([4c04d974](https://github.com/ljquan/opentu/commit/4c04d974))
+
+### ❤️  Thank You
+
+- 李泓震 <3029956183@qq.com>
+- Liang <13642533686@163.com>
+
+## 1.1.13 (2026-09-20)
+
+### 🚀 Features
+
+- complete MiniMax-H3 V2 workflow ([63240233](https://github.com/ljquan/opentu/commit/63240233))
+
+### 🔧 Chores
+
+- 功能：补齐 GPT Image 2.5 尺寸与分辨率参数 ([84b5e01f](https://github.com/ljquan/opentu/commit/84b5e01f))
+
+### ❤️  Thank You
+
+- selwen-0102 <2548530499@qq.com>
+- Liang <13642533686@163.com>
+
 ## 1.1.12 (2026-09-15)
 
 ### 🚀 Features

@@ -98,6 +98,8 @@ export interface ParamConfig {
   valueType: ParamValueType;
   /** 可选值列表（enum 类型时使用） */
   options?: Array<{ value: string; label: string }>;
+  /** 二元枚举的展示控件 */
+  control?: 'switch';
   /** 默认值 */
   defaultValue?: string;
   /** 数值最小值（number 类型时使用） */
@@ -237,7 +239,6 @@ const BUILT_IN_MODEL_RECOMMENDATION_SCORES: Readonly<Record<string, number>> = {
   kling_image: 42,
   'gemini-3-pro-image-preview-4k': 41,
 
-  'MiniMax-H3': 103,
   kling_video: 98,
   [SEEDANCE_25_MODEL_ID]: 102,
   'doubao-seedance-2-0-260128': 101,
@@ -806,20 +807,6 @@ const HAPPYHORSE_DEFAULT_PARAMS: VideoModelDefaults = {
  */
 const BUILT_IN_VIDEO_MODELS: ModelConfig[] = [
   {
-    id: 'MiniMax-H3',
-    label: 'MiniMax-H3',
-    shortCode: 'mh3',
-    description: 'MiniMax-H3 视频生成模型',
-    type: 'video',
-    vendor: ModelVendor.MINIMAX,
-    tags: ['new'],
-    videoDefaults: {
-      duration: '5',
-      size: '768P',
-      aspectRatio: '16:9',
-    },
-  },
-  {
     id: 'kling_video',
     label: 'Kling',
     shortCode: 'kling',
@@ -1130,6 +1117,21 @@ const BUILT_IN_VIDEO_MODELS: ModelConfig[] = [
  */
 const HIDDEN_VIDEO_MODELS: ModelConfig[] = [
   {
+    id: 'MiniMax-H3',
+    label: 'MiniMax-H3',
+    shortCode: 'mh3',
+    description: 'MiniMax-H3 视频生成模型',
+    type: 'video',
+    vendor: ModelVendor.MINIMAX,
+    tags: ['new'],
+    recommendedScore: 103,
+    videoDefaults: {
+      duration: '5',
+      size: '768P',
+      aspectRatio: '16:9',
+    },
+  },
+  {
     id: 'sora-2',
     label: 'Sora 2',
     shortCode: 's2',
@@ -1223,6 +1225,27 @@ export const VIDEO_MODELS: ModelConfig[] = applyBuiltInRecommendedScores([
  * 文本/Agent 模型配置
  */
 const BUILT_IN_TEXT_MODELS: ModelConfig[] = applyBuiltInRecommendedScores([
+  {
+    id: 'gpt-6-sol',
+    label: 'GPT-6 Sol',
+    shortCode: 'g6s',
+    description: 'GPT-6 通用推理、代码与智能体路由',
+    type: 'text',
+    vendor: ModelVendor.GPT,
+    isVip: true,
+    supportsTools: true,
+    tags: ['new'],
+  },
+  {
+    id: 'gpt-6-luna',
+    label: 'GPT-6 Luna',
+    shortCode: 'g6l',
+    description: 'GPT-6 高响应文本与代码路由',
+    type: 'text',
+    vendor: ModelVendor.GPT,
+    supportsTools: true,
+    tags: ['new'],
+  },
   {
     id: 'gpt-5.6-sol',
     label: 'GPT-5.6 Sol',
@@ -1337,6 +1360,17 @@ const BUILT_IN_TEXT_MODELS: ModelConfig[] = applyBuiltInRecommendedScores([
     label: 'Claude Opus 4.6',
     shortCode: 'op46',
     description: 'Anthropic 最新旗舰模型',
+    type: 'text',
+    vendor: ModelVendor.ANTHROPIC,
+    isVip: true,
+    supportsTools: true,
+    tags: ['new'],
+  },
+  {
+    id: 'claude-opus-5-5',
+    label: 'Claude Opus 5.5',
+    shortCode: 'op55',
+    description: 'Anthropic 新一代旗舰模型，适合复杂推理与代码任务',
     type: 'text',
     vendor: ModelVendor.ANTHROPIC,
     isVip: true,
@@ -1493,6 +1527,17 @@ const BUILT_IN_TEXT_MODELS: ModelConfig[] = applyBuiltInRecommendedScores([
     label: 'Grok 4.2',
     shortCode: 'gk42',
     description: 'xAI 最新 Grok 模型',
+    type: 'text',
+    vendor: ModelVendor.GROK,
+    isVip: true,
+    supportsTools: true,
+    tags: ['new'],
+  },
+  {
+    id: 'grok-4.7',
+    label: 'Grok 4.7',
+    shortCode: 'gk47',
+    description: 'xAI 新一代 Grok 模型，适合代码与复杂分析',
     type: 'text',
     vendor: ModelVendor.GROK,
     isVip: true,
@@ -1658,9 +1703,23 @@ export function getModelsByType(type: ModelType): ModelConfig[] {
  * 获取模型配置
  */
 export function getModelConfig(modelId: string): ModelConfig | undefined {
-  return (
+  const exactMatch =
     runtimeModels.find((model) => model.id === modelId) ||
-    getStaticModelConfig(modelId)
+    getStaticModelConfig(modelId);
+  if (exactMatch) return exactMatch;
+
+  const normalizedModelId = modelId.toLowerCase();
+  return (
+    runtimeModels.find(
+      (model) => model.id.toLowerCase() === normalizedModelId
+    ) ||
+    ALL_MODELS.find((model) => model.id.toLowerCase() === normalizedModelId) ||
+    BUILT_IN_TEXT_MODELS.find(
+      (model) => model.id.toLowerCase() === normalizedModelId
+    ) ||
+    HIDDEN_VIDEO_MODELS.find(
+      (model) => model.id.toLowerCase() === normalizedModelId
+    )
   );
 }
 
@@ -1951,21 +2010,26 @@ const SEEDREAM_IMAGE_MODEL_IDS = [
   'doubao-seedream-5-0-pro-260628',
 ];
 
+/** 支持独立分辨率档位的 GPT Image 2.5 模型。 */
+export const GPT_IMAGE_25_EXTENDED_MODEL_IDS = [
+  'gpt-image-2.5',
+  'gpt-image-2.5-vip',
+  'gpt-image-2.5-sunburst',
+  'gpt-image-2.5-flare',
+];
+
 /** 支持扩展比例和 1K / 2K / 4K 分辨率的 GPT Image 模型 ID */
 export const GPT_IMAGE_2_MODEL_IDS = [
   'gpt-image-2-vip',
   'gpt-image-2',
   'gpt-image2-vip',
   'gpt-image2',
-  'gpt-image-2.5-sunburst',
-  'gpt-image-2.5-flare',
+  ...GPT_IMAGE_25_EXTENDED_MODEL_IDS,
 ];
 
 /** GPT Image 2.5 模型 ID（仅支持官方三种像素尺寸） */
 export const GPT_IMAGE_25_MODEL_IDS = [
   'gpt-image-2.5-1k',
-  'gpt-image-2.5',
-  'gpt-image-2.5-vip',
 ];
 
 /** 所有 GPT 图片模型 ID */
@@ -2246,31 +2310,18 @@ export const VIDEO_PARAMS: ParamConfig[] = [
     modelType: 'video',
   },
   {
-    id: 'api_version',
-    label: '接口版本',
-    shortLabel: '接口',
-    description: 'MiniMax-H3 视频生成接口版本',
-    valueType: 'enum',
-    options: [
-      { value: 'v2', label: 'V2' },
-      { value: 'v1', label: 'V1' },
-    ],
-    defaultValue: 'v1',
-    compatibleModels: MINIMAX_H3_MODEL_IDS,
-    modelType: 'video',
-  },
-  {
-    id: 'watermark',
-    label: '水印',
-    shortLabel: '水印',
-    description: '是否添加 Seedance 2.0 水印',
+    id: 'prompt_enhancement',
+    label: '提示词增强',
+    shortLabel: '增强',
+    description: '使用 H3 Context IR 增强视频提示词',
     valueType: 'enum',
     options: [
       { value: 'true', label: '开启' },
       { value: 'false', label: '关闭' },
     ],
+    control: 'switch',
     defaultValue: 'false',
-    compatibleModels: SEEDANCE_2_MODEL_IDS,
+    compatibleModels: MINIMAX_H3_MODEL_IDS,
     modelType: 'video',
   },
   {
@@ -2773,7 +2824,24 @@ export const IMAGE_PARAMS: ParamConfig[] = [
       { value: '4k', label: '4K' },
     ],
     defaultValue: '1k',
-    compatibleModels: GPT_IMAGE_2_MODEL_IDS,
+    compatibleModels: GPT_IMAGE_2_MODEL_IDS.filter(
+      (modelId) => !GPT_IMAGE_25_EXTENDED_MODEL_IDS.includes(modelId)
+    ),
+    modelType: 'image',
+  },
+  {
+    id: 'resolution',
+    label: '图片分辨率',
+    shortLabel: '分辨率',
+    valueType: 'enum',
+    options: [
+      { value: 'auto', label: '自动' },
+      { value: '1k', label: '1K' },
+      { value: '2k', label: '2K' },
+      { value: '4k', label: '4K' },
+    ],
+    defaultValue: 'auto',
+    compatibleModels: GPT_IMAGE_25_EXTENDED_MODEL_IDS,
     modelType: 'image',
   },
   // GPT Image 官方画质参数
@@ -2792,12 +2860,14 @@ export const IMAGE_PARAMS: ParamConfig[] = [
     defaultValue: 'auto',
     compatibleModels: GPT_IMAGE_MODEL_IDS.filter(
       (modelId) =>
+        modelId !== 'gpt-image-2.5' &&
+        modelId !== 'gpt-image-2.5-vip' &&
         modelId !== 'gpt-image-2.5-sunburst' &&
         modelId !== 'gpt-image-2.5-flare'
     ),
     modelType: 'image',
   },
-  // GPT Image 2.5 Sunburst / Flare 额外支持 xhigh 与 max
+  // GPT Image 2.5 画质选项最高开放到 xhigh
   {
     id: 'quality',
     label: '画质',
@@ -2810,10 +2880,11 @@ export const IMAGE_PARAMS: ParamConfig[] = [
       { value: 'medium', label: '标准' },
       { value: 'high', label: '高清' },
       { value: 'xhigh', label: '超高清' },
-      { value: 'max', label: '最高' },
     ],
     defaultValue: 'auto',
     compatibleModels: [
+      'gpt-image-2.5',
+      'gpt-image-2.5-vip',
       'gpt-image-2.5-sunburst',
       'gpt-image-2.5-flare',
     ],
@@ -3121,14 +3192,7 @@ export function getParamsByModelType(modelType: ModelType): ParamConfig[] {
  * 根据模型 ID 获取兼容的参数列表
  */
 export function getCompatibleParams(modelId: string): ParamConfig[] {
-  const requestedModelId = modelId.trim().toLowerCase();
-  const modelConfig =
-    getModelConfig(modelId) ||
-    (requestedModelId === 'minimax-h3'
-      ? runtimeModels.find(
-          (model) => model.id.toLowerCase() === requestedModelId
-        )
-      : undefined);
+  const modelConfig = getModelConfig(modelId);
   if (!modelConfig) return [];
   const normalizedModelId = modelConfig.id.toLowerCase();
 

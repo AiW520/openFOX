@@ -182,7 +182,8 @@ async function fetchRemoteModelList(
   if (signal?.aborted) abortFromCaller();
   signal?.addEventListener('abort', abortFromCaller, { once: true });
   try {
-    const response = await fetch(`${baseUrl}/models`, {
+    const requestUrl = getModelListRequestUrl(baseUrl);
+    const response = await fetch(requestUrl, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
@@ -209,6 +210,30 @@ async function fetchRemoteModelList(
     if (timeoutId !== undefined) clearTimeout(timeoutId);
     signal?.removeEventListener('abort', abortFromCaller);
   }
+}
+
+function getModelListRequestUrl(baseUrl: string): string {
+  if (typeof window === 'undefined') {
+    return `${baseUrl}/models`;
+  }
+
+  try {
+    const parsed = new URL(baseUrl);
+    if (
+      parsed.protocol === 'https:' &&
+      parsed.hostname.toLowerCase() === 'api.tu-zi.com'
+    ) {
+      const path = `${parsed.pathname.replace(/\/+$/, '')}/models`;
+      return new URL(
+        `/__opentu_tuzi_session__${path.startsWith('/') ? path : `/${path}`}`,
+        window.location.origin
+      ).toString();
+    }
+  } catch {
+    // Fall back to the direct URL for incomplete custom addresses.
+  }
+
+  return `${baseUrl}/models`;
 }
 
 function buildModelDiscoveryBaseUrls(
@@ -1256,10 +1281,27 @@ function getProfileById(profileId: string): ProviderProfile | null {
 
 function isProfileEnabled(profileId: string): boolean {
   if (profileId === LEGACY_DEFAULT_PROVIDER_PROFILE_ID) {
-    return !isTuziEmbeddedMode() || hasTuziSystemToken();
+    const profile = getProfileById(profileId);
+    // An explicitly configured API key does not require a Tuzi login token.
+    return profile?.enabled !== false && (
+      !isTuziEmbeddedMode() ||
+      hasTuziSystemToken() ||
+      Boolean(profile?.apiKey?.trim() && profile?.baseUrl?.trim())
+    );
   }
 
   return getProfileById(profileId)?.enabled !== false;
+}
+
+function canDiscoverProfileModels(profile: ProviderProfile | null): boolean {
+  return Boolean(
+    profile &&
+      isProfileEnabled(profile.id) &&
+      profile.enabled !== false &&
+      profile.capabilities?.supportsModelsEndpoint !== false &&
+      profile.baseUrl?.trim() &&
+      profile.apiKey?.trim()
+  );
 }
 
 function attachRuntimeSource(
@@ -1634,10 +1676,17 @@ class RuntimeModelDiscoveryStore {
   }
 
   getSelectableModels(type: ModelType): ModelConfig[] {
-    return sortModelsByDisplayPriority([
-      ...this.getConfiguredSelectableModels(type),
-      ...decorateStaticModels(getStaticModelsByType(type)),
-    ]);
+    if (
+      providerProfilesSettings
+        .get()
+        .some((profile) => canDiscoverProfileModels(profile))
+    ) {
+      return this.getConfiguredSelectableModels(type);
+    }
+
+    return sortModelsByDisplayPriority(
+      decorateStaticModels(getStaticModelsByType(type))
+    );
   }
 
   getConfiguredSelectableModels(type: ModelType): ModelConfig[] {
@@ -1746,6 +1795,9 @@ class RuntimeModelDiscoveryStore {
           isDefaultModelHidden(model.id)
         )
     );
+    if (canDiscoverProfileModels(getProfileById(profileId))) {
+      return sortModelsByDisplayPriority(runtimeModels);
+    }
     return mergeModels(getStaticModelsByType(type), runtimeModels);
   }
 

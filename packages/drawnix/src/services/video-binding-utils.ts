@@ -24,9 +24,9 @@ const FIXED_SORA_DURATION_MODEL_PATTERN = /^sora-2-(\d+)s$/i;
 const DEFAULT_VIDEO_POLL_PATH = '/videos/{taskId}';
 const DEFAULT_VIDEO_DOWNLOAD_PATH = '/videos/{taskId}/content';
 export const MINIMAX_H3_VIDEO_SUBMIT_PATH = '/v2/video_generation';
-const MINIMAX_H3_V1_VIDEO_SUBMIT_PATH = '/v1/videos';
+export const MINIMAX_H3_V1_VIDEO_SUBMIT_PATH = '/v1/videos';
 const MINIMAX_H3_VIDEO_POLL_PATH = '/v2/query/video_generation/{taskId}';
-const MINIMAX_H3_V1_VIDEO_POLL_PATH = '/v1/videos/{taskId}';
+export const MINIMAX_H3_V1_VIDEO_POLL_PATH = '/v1/videos/{taskId}';
 export const MINIMAX_H3_API_VERSION_PARAM_ID = 'api_version';
 const MINIMAX_H3_RESOLUTIONS = new Set(['768P', '2K']);
 const MINIMAX_H3_RATIOS = new Set([
@@ -301,11 +301,9 @@ export function resolveMiniMaxH3ApiVersion(
 }
 
 export function resolveMiniMaxH3VideoSubmitPath(
-  params?: Record<string, unknown> | null
+  _params?: Record<string, unknown> | null
 ): string {
-  return resolveMiniMaxH3ApiVersion(params) === 'v1'
-    ? MINIMAX_H3_V1_VIDEO_SUBMIT_PATH
-    : MINIMAX_H3_VIDEO_SUBMIT_PATH;
+  return MINIMAX_H3_VIDEO_SUBMIT_PATH;
 }
 
 export function buildMiniMaxH3VideoRequest(params: {
@@ -314,6 +312,7 @@ export function buildMiniMaxH3VideoRequest(params: {
   size?: string | null;
   ratio?: unknown;
   referenceImages?: string[];
+  referenceVideos?: string[];
 }): Record<string, unknown> {
   const parsedDuration = Number(params.duration);
   const duration =
@@ -329,25 +328,57 @@ export function buildMiniMaxH3VideoRequest(params: {
     ? requestedResolution
     : '768P';
   const requestedRatio = String(params.ratio || '').trim();
-  const referenceImage = (params.referenceImages || [])
+  const referenceImages = (params.referenceImages || [])
     .map((url) => url?.trim())
-    .find(Boolean);
-  const hasReferenceImages = Boolean(referenceImage);
+    .filter((url): url is string => Boolean(url));
+  const referenceVideos = (params.referenceVideos || [])
+    .map((url) => url?.trim())
+    .filter((url): url is string => Boolean(url));
+  if (referenceVideos.length > 3) {
+    throw new Error('MiniMax-H3 参考视频最多支持 3 个');
+  }
+  if (referenceVideos.length > 0 && referenceImages.length > 9) {
+    throw new Error('MiniMax-H3 参考图片最多支持 9 张');
+  }
+  if (referenceVideos.length === 0 && referenceImages.length > 2) {
+    throw new Error('MiniMax-H3 首帧/尾帧图片最多支持 2 张');
+  }
+  const hasReferenceImages = referenceImages.length > 0;
   const ratio =
     MINIMAX_H3_RATIOS.has(requestedRatio) &&
-    (requestedRatio !== 'adaptive' || hasReferenceImages)
+    (requestedRatio !== 'adaptive' || hasReferenceImages || referenceVideos.length > 0)
       ? requestedRatio
+      : hasReferenceImages || referenceVideos.length > 0
+      ? 'adaptive'
       : '16:9';
   const content: Array<Record<string, unknown>> = [
     { type: 'text', text: params.prompt },
   ];
 
-  if (referenceImage) {
+  if (referenceVideos.length > 0) {
+    for (const url of referenceImages) {
+      content.push({ type: 'image_url', role: 'reference_image', image_url: { url } });
+    }
+    for (const referenceVideo of referenceVideos) {
+      content.push({
+        type: 'video_url',
+        role: 'reference_video',
+        video_url: { url: referenceVideo },
+      });
+    }
+  } else if (referenceImages.length > 0) {
     content.push({
       type: 'image_url',
       role: 'first_frame',
-      image_url: { url: referenceImage },
+      image_url: { url: referenceImages[0] },
     });
+    if (referenceImages.length === 2) {
+      content.push({
+        type: 'image_url',
+        role: 'last_frame',
+        image_url: { url: referenceImages[1] },
+      });
+    }
   }
 
   return {
@@ -379,6 +410,26 @@ export function normalizeMiniMaxH3VideoResponse(
   const id = payload?.task_id || task?.id || fallbackId;
   const videoUrl = task?.content?.url || task?.video_url || task?.url;
   const duration = task?.duration;
+  const businessCode = payload?.base_resp?.status_code;
+  const businessMessage = String(
+    payload?.base_resp?.status_msg || payload?.message || ''
+  ).trim();
+
+  // Tuzi may return provider/business errors in a successful HTTP response.
+  // Convert them to a terminal failure so the shared poller cannot spin on a
+  // response without a task status.
+  if (businessCode !== undefined && String(businessCode) !== '0') {
+    return {
+      ...task,
+      id,
+      model: task?.model || 'MiniMax-H3',
+      status: 'failed',
+      error: {
+        code: String(businessCode),
+        message: businessMessage || `MiniMax-H3 请求失败（${businessCode}）`,
+      },
+    };
+  }
 
   return {
     ...task,
@@ -673,11 +724,7 @@ export function resolveVideoPollPathForModel(
   params?: Record<string, unknown> | null
 ): string {
   if (isMiniMaxH3Model(modelId)) {
-    const template =
-      resolveMiniMaxH3ApiVersion(params) === 'v1'
-        ? MINIMAX_H3_V1_VIDEO_POLL_PATH
-        : MINIMAX_H3_VIDEO_POLL_PATH;
-    return resolveTemplatePath(template, videoId);
+    return resolveTemplatePath(MINIMAX_H3_VIDEO_POLL_PATH, videoId);
   }
   return resolveVideoPollPath(videoId, binding, params);
 }
