@@ -1,0 +1,11 @@
+## Implementation
+- [x] Implement the approved B photo wall with separate image/video rows and compact text/audio recommendations.
+- [x] Verify full provider-aware selection, motion controls, empty categories, narrow screens and existing homepage handoff.
+- [x] Implement approved compact home and theme.
+- [x] Correct starter scrolling and reduced-motion behavior.
+- [x] Add independent site introduction and share dialog.
+- [x] Verify desktop/mobile layout, handoff, settings, share link and errors.
+- [x] Run scoped lint, typecheck and related tests.
+- [x] Replace the three-card new-version home section with the real model showcase and keep legacy inspiration unchanged.
+- [x] Expose image/video model recommendations, selectable vendor cards, horizontal scrolling and the full 1/2/3/4/5/10/20 quantity selector.
+- [x] Replace new-canvas native version selects with a compact segmented switch and verify model/count handoff into the existing bottom composer.

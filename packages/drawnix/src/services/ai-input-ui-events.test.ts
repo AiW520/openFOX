@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   AI_INPUT_FOCUS_EVENT,
+  registerAIInputPrefillConsumer,
+  requestAIInputPrefill,
   requestAIInputFocus,
   resolvePptExplainerFrameIds,
   updatePptExplainerFrameSelection,
@@ -58,5 +60,40 @@ describe('ai-input-ui-events', () => {
       new Set(['frame-2'])
     );
     expect(current).toEqual(new Set(['frame-1', 'frame-2']));
+  });
+
+  it('delivers a prefill queued before the canvas input mounts exactly once', async () => {
+    const detail = {
+      generationType: 'image' as const,
+      prompt: 'editorial product photo',
+      model: 'image-model',
+      params: { size: '1:1' },
+      source: 'new-experience' as const,
+    };
+    const consumer = vi.fn();
+
+    requestAIInputPrefill(detail);
+    const unregister = registerAIInputPrefillConsumer(consumer);
+    await Promise.resolve();
+
+    expect(consumer).toHaveBeenCalledTimes(1);
+    expect(consumer).toHaveBeenCalledWith(detail);
+    unregister();
+  });
+
+  it('dispatches a prefill immediately when the canvas input is mounted', () => {
+    const consumer = vi.fn();
+    const unregister = registerAIInputPrefillConsumer(consumer);
+    const detail = {
+      generationType: 'video' as const,
+      prompt: 'slow camera move',
+      model: 'video-model',
+    };
+
+    requestAIInputPrefill(detail);
+
+    expect(consumer).toHaveBeenCalledTimes(1);
+    expect(consumer).toHaveBeenCalledWith(detail);
+    unregister();
   });
 });

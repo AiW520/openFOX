@@ -9,6 +9,9 @@ import type { MediaLibraryConfig } from '../../types/asset.types';
  * 统一工具栏容器组件属性
  */
 export interface UnifiedToolbarProps {
+  canvasLayout?: 'legacy' | 'workbench';
+  onBackToNewHome?: () => void;
+  onSwitchToLegacy?: () => void;
   /**
    * (可选) 自定义CSS类名
    */

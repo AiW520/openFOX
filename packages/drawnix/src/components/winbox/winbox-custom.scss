@@ -504,6 +504,26 @@
   }
 }
 
+.winbox-new-image-generation:has(.batch-image-generation--workbench) {
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  box-shadow: 0 22px 70px rgba(24, 35, 51, 0.2) !important;
+
+  .wb-header {
+    border-bottom-color: #e6e9ed;
+  }
+
+  .wb-body,
+  .winbox-content-wrapper {
+    min-height: 0;
+  }
+
+  .winbox-content-wrapper {
+    padding: 0;
+  }
+}
+
 // 视频生成弹窗 - 保留标题显示
 .winbox-ai-video-generation {
   .wb-title {

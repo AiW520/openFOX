@@ -31,6 +31,23 @@ import type {
 } from '@plait/core';
 import { ErrorFallbackUI, safeModeReload, goToDebug } from './ErrorBoundary';
 import { collectAndDownloadErrorLog } from '../utils/error-log-exporter';
+import {
+  readExperienceVersion,
+  writeExperienceVersion,
+  type ExperienceVersion,
+} from './experience-version';
+import styles from './app.module.scss';
+
+const NewExperienceHome = lazy(() =>
+  import('@drawnix/drawnix').then((module) => ({
+    default: module.NewExperienceHome,
+  }))
+);
+const NewExperienceSettingsOverlay = lazy(() =>
+  import('@drawnix/drawnix').then((module) => ({
+    default: module.NewExperienceSettingsOverlay,
+  }))
+);
 
 const Drawnix = lazy(() =>
   import('@drawnix/drawnix').then((module) => ({
@@ -202,6 +219,34 @@ function clearBoardCloseSnapshot(boardId?: string | null): void {
 }
 
 export function App() {
+  const [experienceVersion, setExperienceVersion] = useState<ExperienceVersion>(
+    () => {
+      const entry = new URLSearchParams(window.location.search).get(
+        'experience'
+      );
+      return entry === 'new' || entry === 'legacy'
+        ? entry
+        : readExperienceVersion();
+    }
+  );
+  const [showNewHome, setShowNewHome] = useState(
+    () => new URLSearchParams(window.location.search).get('view') !== 'canvas'
+  );
+  const [showHomeSettings, setShowHomeSettings] = useState(false);
+  const isNewExperience = experienceVersion === 'new';
+  const isNewHome = isNewExperience && showNewHome;
+  useEffect(() => {
+    writeExperienceVersion(experienceVersion);
+  }, [experienceVersion]);
+  const switchExperience = (version: ExperienceVersion) => {
+    setExperienceVersion(version);
+    setShowNewHome(version === 'new');
+    setShowHomeSettings(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('experience', version);
+    url.searchParams.delete('view');
+    window.history.replaceState(window.history.state, '', url);
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [isDataReady, setIsDataReady] = useState(false);
   // 使用 ref 跟踪 isDataReady，避免 handleBoardChange 因闭包捕获旧值导致保存被跳过
@@ -228,6 +273,13 @@ export function App() {
   const isHandlingPopStateRef = useRef<boolean>(false);
   // 保存 board 引用，用于手动触发边界更新
   const boardRef = useRef<PlaitBoard | null>(null);
+  useEffect(() => {
+    if (isNewHome) return;
+    const frame = requestAnimationFrame(() => {
+      if (boardRef.current) void refreshBoardViewportBounds(boardRef.current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isNewHome]);
   // 标记是否正在同步其他标签页的数据（同步期间不保存，防止旧数据覆盖新数据）
   const isSyncingRef = useRef<boolean>(false);
   // 标记本标签页是否有用户主动修改（只有用户修改过才在 visibilitychange 时保存）
@@ -988,32 +1040,91 @@ export function App() {
   }
 
   return (
-    <div style={{ height: '100vh' }}>
-      <Suspense fallback={null}>
-        <Drawnix
-          value={value.children}
-          viewport={value.viewport}
-          theme={value.theme}
-          onChange={handleBoardChange}
-          onViewportChange={handleViewportChange}
-          onBoardSwitch={handleBoardSwitch}
-          onTabSyncNeeded={handleTabSyncNeeded}
-          isDataReady={isDataReady}
-          currentBoardId={currentBoardId}
-          afterInit={(board) => {
-            // 保存 board 引用，用于手动触发边界更新
-            boardRef.current = board;
+    <div className={isNewHome ? styles.experienceRoot : styles.canvasRoot}>
+      {(!isNewExperience || isNewHome) && (
+        <div className={styles.experienceChrome}>
+          <div className={styles.experienceSwitcher} aria-label="体验版本">
+            <button
+              type="button"
+              aria-pressed={!isNewExperience}
+              className={!isNewExperience ? styles.active : undefined}
+              onClick={() => switchExperience('legacy')}
+            >
+              旧版本
+            </button>
+            <button
+              type="button"
+              aria-pressed={isNewExperience}
+              className={isNewExperience ? styles.active : undefined}
+              onClick={() => switchExperience('new')}
+            >
+              新版本
+            </button>
+          </div>
+        </div>
+      )}
+      {isNewHome && (
+        <Suspense fallback={null}>
+          <NewExperienceHome
+            currentBoardId={currentBoardId}
+            hasCanvasContent={value.children.length > 0}
+            onOpenCanvas={() => {
+              setShowNewHome(false);
+              const url = new URL(window.location.href);
+              url.searchParams.set('view', 'canvas');
+              window.history.replaceState(window.history.state, '', url);
+            }}
+            onOpenSettings={() => setShowHomeSettings(true)}
+          />
+          {showHomeSettings && (
+            <NewExperienceSettingsOverlay
+              onClose={() => setShowHomeSettings(false)}
+            />
+          )}
+        </Suspense>
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: isNewHome ? 'none' : undefined,
+        }}
+        aria-hidden={isNewHome}
+      >
+        <Suspense fallback={null}>
+          <Drawnix
+            canvasLayout={isNewExperience ? 'workbench' : 'legacy'}
+            onBackToNewHome={() => {
+              setShowNewHome(true);
+              const url = new URL(window.location.href);
+              url.searchParams.delete('view');
+              window.history.replaceState(window.history.state, '', url);
+            }}
+            onSwitchToLegacy={() => switchExperience('legacy')}
+            value={value.children}
+            viewport={value.viewport}
+            theme={value.theme}
+            onChange={handleBoardChange}
+            onViewportChange={handleViewportChange}
+            onBoardSwitch={handleBoardSwitch}
+            onTabSyncNeeded={handleTabSyncNeeded}
+            isDataReady={isDataReady}
+            currentBoardId={currentBoardId}
+            afterInit={(board) => {
+              // 保存 board 引用，用于手动触发边界更新
+              boardRef.current = board;
 
-            (
-              window as unknown as {
-                __drawnix__web__console: (value: string) => void;
-              }
-            )['__drawnix__web__console'] = (value: string) => {
-              addDebugLog(board, value);
-            };
-          }}
-        />
-      </Suspense>
+              (
+                window as unknown as {
+                  __drawnix__web__console: (value: string) => void;
+                }
+              )['__drawnix__web__console'] = (value: string) => {
+                addDebugLog(board, value);
+              };
+            }}
+          />
+        </Suspense>
+      </div>
     </div>
   );
 }

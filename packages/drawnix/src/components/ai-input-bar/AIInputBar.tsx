@@ -237,7 +237,7 @@ import {
 } from '../../utils/ai-model-selection-storage';
 import {
   AI_INPUT_FOCUS_EVENT,
-  AI_INPUT_PREFILL_EVENT,
+  registerAIInputPrefillConsumer,
   type AIInputFocusEventDetail,
   type AIInputPrefillEventDetail,
 } from '../../services/ai-input-ui-events';
@@ -875,6 +875,7 @@ function isVideoUrl(url: string): boolean {
 }
 
 interface AIInputBarProps {
+  canvasLayout?: 'legacy' | 'workbench';
   className?: string;
   /** 数据是否已准备好（用于判断画布是否为空） */
   isDataReady?: boolean;
@@ -1610,6 +1611,7 @@ SelectionWatcher.displayName = 'SelectionWatcher';
 
 export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
   ({
+    canvasLayout = 'legacy',
     className,
     isDataReady,
     currentBoardId,
@@ -3585,9 +3587,8 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
 
     useEffect(() => {
       const handleAIInputPrefill = async (
-        event: Event | CustomEvent<AIInputPrefillEventDetail>
+        detail: AIInputPrefillEventDetail
       ) => {
-        const detail = (event as CustomEvent<AIInputPrefillEventDetail>).detail;
         if (!detail || !(await confirmOverwriteInputIfNeeded(detail.source))) {
           return;
         }
@@ -3680,20 +3681,20 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
           setSelectedCount(detail.count);
         }
         MessagePlugin.success(
-          language === 'zh'
+          detail.source === 'new-experience'
+            ? language === 'zh'
+              ? '请求已带入画布底部输入栏；点击发送后可在任务队列查看进度，结果会插入当前画布并定位到最新结果'
+              : 'Request loaded into the canvas input. Send it to track progress in the task queue and insert the result into the current canvas.'
+            : language === 'zh'
             ? '已回填到底部输入框，请手动发送'
             : 'Loaded into the bottom input. Send manually when ready.'
         );
         focusInput();
       };
 
-      window.addEventListener(AI_INPUT_PREFILL_EVENT, handleAIInputPrefill);
-      return () => {
-        window.removeEventListener(
-          AI_INPUT_PREFILL_EVENT,
-          handleAIInputPrefill
-        );
-      };
+      return registerAIInputPrefillConsumer((detail) => {
+        void handleAIInputPrefill(detail);
+      });
     }, [
       audioModels,
       applyCanvasAssociationPromptOverwrite,
@@ -7663,7 +7664,8 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
         canvasAssociationRefs.length > 0);
     const shouldHighlightInspirationSend =
       isInspirationSendGuideActive && canGenerate && !isSubmitting;
-    const showInspirationBoard = isCanvasEmpty === true;
+    const showInspirationBoard =
+      isCanvasEmpty === true && canvasLayout === 'legacy';
     const hasSelectedTextContent = selectedContent.some(
       (item) => item.type === 'text' && item.text?.trim()
     );
@@ -8061,11 +8063,13 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
             onFrameSelected={handleFrameSelected}
           />
 
-          <InspirationBoard
-            isCanvasEmpty={showInspirationBoard}
-            onSelectPrompt={handleSelectInspirationPrompt}
-            onOpenPromptTool={handleOpenPromptToolFromInspiration}
-          />
+          {canvasLayout === 'legacy' && (
+            <InspirationBoard
+              isCanvasEmpty={showInspirationBoard}
+              onSelectPrompt={handleSelectInspirationPrompt}
+              onOpenPromptTool={handleOpenPromptToolFromInspiration}
+            />
+          )}
 
           <AIInputComposerShell
             variant="canvas"

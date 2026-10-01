@@ -50,13 +50,15 @@ type ImageGenerationMode = 'single' | 'batch';
 
 const TTDDialogComponent = ({
   container,
+  canvasLayout = 'legacy',
 }: {
   container: HTMLElement | null;
+  canvasLayout?: 'legacy' | 'workbench';
 }) => {
   const { appState, setAppState, openDialog, closeDialog } = useDrawnix();
   const { language } = useI18n();
   const board = useBoard();
-  const { isMobile, isTablet } = useDeviceType();
+  const { isMobile, isTablet, viewportWidth, viewportHeight } = useDeviceType();
   const dialogInitialDataByType = appState.dialogInitialDataByType;
   const imageDialogInitialData =
     dialogInitialDataByType?.[DialogType.aiImageGeneration] ?? null;
@@ -299,15 +301,22 @@ const TTDDialogComponent = ({
         return 'single';
       }
     });
-  const shouldForceImageDialogSingleMode =
+  const shouldUseInitialImageMode =
     !!imageDialogInitialData &&
     imageDialogManualModeKey !== imageDialogSessionKey;
   const imageDialogRenderMode: ImageGenerationMode =
-    shouldForceImageDialogSingleMode ? 'single' : imageGenerationMode;
+    !showBatchTab
+      ? 'single'
+      : shouldUseInitialImageMode
+      ? imageDialogInitialData?.imageGenerationMode || 'single'
+      : imageGenerationMode;
 
   useEffect(() => {
     setImageDialogManualModeKey(null);
-  }, [imageDialogInitialData]);
+    if (imageDialogInitialData?.imageGenerationMode && showBatchTab) {
+      setImageGenerationMode(imageDialogInitialData.imageGenerationMode);
+    }
+  }, [imageDialogInitialData, showBatchTab]);
 
   // 移动端/平板端自动切换回单图模式
   useEffect(() => {
@@ -322,7 +331,7 @@ const TTDDialogComponent = ({
       setImageDialogManualModeKey(imageDialogSessionKey);
       setImageGenerationMode(mode);
       // 切换到批量模式时触发一次性全屏，切回时不调整尺寸（保持当前状态）
-      if (mode === 'batch') {
+      if (mode === 'batch' && canvasLayout !== 'workbench') {
         setImageDialogAutoMaximize(true);
         // 瞬间重置标识位，使其成为一个“脉冲”触发信号
         // 这样用户如果手动还原了窗口，再次点批量还能触发全屏
@@ -334,7 +343,7 @@ const TTDDialogComponent = ({
         console.warn('Failed to save image mode:', e);
       }
     },
-    [imageDialogSessionKey]
+    [canvasLayout, imageDialogSessionKey]
   );
 
   // 当对话框将要打开时，预先计算是否需要自动放大
@@ -353,7 +362,7 @@ const TTDDialogComponent = ({
       // 否则读取 localStorage 中保存的模式
       try {
         const savedMode = localStorage.getItem(AI_IMAGE_MODE_CACHE_KEY);
-        if (savedMode === 'batch') {
+        if (savedMode === 'batch' && canvasLayout !== 'workbench') {
           setImageDialogAutoMaximize(true);
           setTimeout(() => setImageDialogAutoMaximize(false), 50);
         }
@@ -365,6 +374,7 @@ const TTDDialogComponent = ({
     appState.openDialogTypes,
     aiImageData.initialImages,
     aiImageData.initialPrompt,
+    canvasLayout,
   ]);
 
   const prevImageDialogOpenRef = useRef(false);
@@ -810,17 +820,32 @@ const TTDDialogComponent = ({
           ) : undefined
         }
         onClose={handleImageDialogClose}
-        width="80%"
-        height="60%"
+        width={
+          canvasLayout === 'workbench'
+            ? Math.min(1160, Math.round(viewportWidth * 0.88))
+            : '80%'
+        }
+        height={
+          canvasLayout === 'workbench'
+            ? Math.min(780, Math.round(viewportHeight * 0.82))
+            : '60%'
+        }
         minWidth={800}
-        minHeight={500}
+        minHeight={canvasLayout === 'workbench' ? 520 : 500}
         x="center"
         y="center"
         modal={false}
         minimizable={false}
-        className="winbox-ai-generation winbox-ai-image-generation"
+        className={`winbox-ai-generation winbox-ai-image-generation${
+          canvasLayout === 'workbench' ? ' winbox-new-image-generation' : ''
+        }`}
         container={container}
-        autoMaximize={imageDialogAutoMaximize || isMobile}
+        autoMaximize={
+          isMobile ||
+          (canvasLayout !== 'workbench' &&
+            (imageDialogAutoMaximize ||
+              (shouldUseInitialImageMode && imageDialogRenderMode === 'batch')))
+        }
       >
         {appState.openDialogTypes.has(DialogType.aiImageGeneration) &&
           (imageDialogRenderMode === 'batch' ? (
@@ -832,6 +857,7 @@ const TTDDialogComponent = ({
               }
             >
               <BatchImageGeneration
+                workbench={canvasLayout === 'workbench'}
                 onSwitchToSingle={() => handleImageModeChange('single')}
                 selectedModel={selectedImageModel}
                 selectedModelRef={selectedImageModelRef}
@@ -933,6 +959,8 @@ const TTDDialogComponent = ({
 
 // 使用 React.memo 优化组件，只有当关键属性变化时才重新渲染
 export const TTDDialog = memo(TTDDialogComponent, (prevProps, nextProps) => {
-  // 只有当 container 变化时才重新渲染
-  return prevProps.container === nextProps.container;
+  return (
+    prevProps.container === nextProps.container &&
+    prevProps.canvasLayout === nextProps.canvasLayout
+  );
 });

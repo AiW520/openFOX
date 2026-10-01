@@ -1132,8 +1132,10 @@ async function measureEndpointLatency(url: string): Promise<EndpointLatency> {
 
 export const SettingsDialog = ({
   container,
+  initialView = 'providers',
 }: {
   container: HTMLElement | null;
+  initialView?: SettingsView;
 }) => {
   const { appState, setAppState } = useDrawnix();
   const { confirm, confirmDialog } = useConfirmDialog({ container });
@@ -1145,6 +1147,10 @@ export const SettingsDialog = ({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const [dialogWidth, setDialogWidth] = useState(0);
   const [tuziMode, setTuziMode] = useState(() => isTuziEmbeddedMode());
+  // An explicit account entry also works outside the embedded site. This only
+  // exposes account UI; it does not grant a bridge session or change auth mode.
+  const accountEntryRequestedRef = useRef(false);
+  const [showStandaloneAccount, setShowStandaloneAccount] = useState(false);
   useEffect(() => {
     const syncBridgeMode = () => setTuziMode(isTuziEmbeddedMode());
     window.addEventListener(TUZI_BRIDGE_EVENT, syncBridgeMode);
@@ -1155,12 +1161,12 @@ export const SettingsDialog = ({
 
     return () => window.removeEventListener(TUZI_BRIDGE_EVENT, syncBridgeMode);
   }, [appState.openSettings]);
-  const settingsSections = tuziMode
+  const settingsSections = tuziMode || showStandaloneAccount || initialView === 'tuzi-account'
     ? [TUZI_ACCOUNT_SECTION, ...VIEW_SECTIONS]
     : VIEW_SECTIONS;
 
   const [activeView, setActiveView] = useState<SettingsView>(() =>
-    tuziMode ? 'tuzi-account' : 'providers'
+    tuziMode ? 'tuzi-account' : initialView
   );
   const [tuziGroupPickerRequest, setTuziGroupPickerRequest] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState(
@@ -1505,6 +1511,8 @@ export const SettingsDialog = ({
 
   useEffect(() => {
     if (!appState.openSettings) {
+      accountEntryRequestedRef.current = false;
+      setShowStandaloneAccount(false);
       return;
     }
 
@@ -1517,6 +1525,13 @@ export const SettingsDialog = ({
     const geminiConfig = geminiSettings.get();
     let nextShowWorkZoneCard = true;
     const pendingProviderIntent = readPendingProviderNavigationIntent();
+    if (
+      pendingProviderIntent?.action === 'tuzi-account' ||
+      pendingProviderIntent?.action === 'tuzi-groups'
+    ) {
+      accountEntryRequestedRef.current = true;
+      setShowStandaloneAccount(true);
+    }
     const nextSelectedProfileId =
       pendingProviderIntent?.action === 'select' &&
       nextProfiles.some(
@@ -1552,9 +1567,9 @@ export const SettingsDialog = ({
     }
     setShowWorkZoneCard(nextShowWorkZoneCard);
 
-    const nextActiveView: SettingsView = tuziMode
+    const nextActiveView: SettingsView = tuziMode || accountEntryRequestedRef.current
       ? 'tuzi-account'
-      : 'providers';
+      : initialView;
     setActiveView(nextActiveView);
     setCompactProviderMode(
       pendingProviderIntent && isCompactLayout ? 'detail' : 'catalog'
@@ -1575,10 +1590,13 @@ export const SettingsDialog = ({
       })
     );
 
-    if (pendingProviderIntent?.action === 'create') {
+    if (
+      pendingProviderIntent?.action === 'create' ||
+      pendingProviderIntent?.action === 'tuzi-groups'
+    ) {
       applyProviderNavigationIntent(pendingProviderIntent, nextProfiles);
     }
-  }, [appState.openSettings, tuziMode]);
+  }, [appState.openSettings, tuziMode, initialView]);
 
   useEffect(() => {
     if (!selectedProfileId && profilesDraft[0]) {
@@ -1973,9 +1991,13 @@ export const SettingsDialog = ({
   ) => {
     const sourceProfiles = baseProfiles || profilesDraft;
 
-    if (intent.action === 'tuzi-groups') {
+    if (intent.action === 'tuzi-account' || intent.action === 'tuzi-groups') {
+      accountEntryRequestedRef.current = true;
+      setShowStandaloneAccount(true);
       setActiveView('tuzi-account');
-      setTuziGroupPickerRequest((current) => current + 1);
+      if (intent.action === 'tuzi-groups') {
+        setTuziGroupPickerRequest((current) => current + 1);
+      }
       return sourceProfiles;
     }
 
@@ -2030,6 +2052,9 @@ export const SettingsDialog = ({
       if (!detail) {
         return;
       }
+      // The open dialog handles this request now, so it must not replay on
+      // the next opening (especially when the user later opens provider setup).
+      readPendingProviderNavigationIntent();
       applyProviderNavigationIntent(detail);
     };
 

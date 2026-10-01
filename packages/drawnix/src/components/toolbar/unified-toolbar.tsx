@@ -19,6 +19,7 @@ import { useDeviceType } from '../../hooks/useDeviceType';
 import { AIImageIcon, AIVideoIcon } from '../icons';
 import { DialogType, useDrawnix } from '../../hooks/use-drawnix';
 import { HoverTip } from '../shared/hover';
+import { WorkbenchTopbar } from './workbench-topbar';
 
 const TaskQueuePanel = lazy(() =>
   import('../task-queue/TaskQueuePanel').then((module) => ({
@@ -146,6 +147,9 @@ function syncToolbarPositionVars(left: number, toolbarEl: HTMLElement | null) {
  */
 export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = React.memo(
   ({
+    canvasLayout = 'legacy',
+    onBackToNewHome,
+    onSwitchToLegacy,
     className,
     projectDrawerOpen = false,
     onProjectDrawerToggle,
@@ -161,6 +165,8 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = React.memo(
     onEnableToolWindows,
   }) => {
     const [isIconMode, setIsIconMode] = useState(false);
+    const [taskButtonContainer, setTaskButtonContainer] =
+      useState<HTMLDivElement | null>(null);
     const [isMobileCollapsed, setIsMobileCollapsed] = useState(true); // 移动端默认收起
     const [toolbarLeft, setToolbarLeft] = useState(readStoredToolbarLeft);
     const [isToolbarDragging, setIsToolbarDragging] = useState(false);
@@ -445,6 +451,14 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = React.memo(
 
     return (
       <>
+        {canvasLayout === 'workbench' && (
+          <WorkbenchTopbar
+            onBackToNewHome={onBackToNewHome}
+            onSwitchToLegacy={onSwitchToLegacy}
+            taskButtonRef={setTaskButtonContainer}
+            batchAvailable={!isMobileOrTablet}
+          />
+        )}
         {/* 任务队列面板 - 只在首次展开后才渲染 */}
         {hasEverExpanded.current && (
           <Suspense fallback={null}>
@@ -461,6 +475,7 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = React.memo(
             'unified-toolbar',
             ATTACHED_ELEMENT_CLASS_NAME,
             {
+              'unified-toolbar--workbench': canvasLayout === 'workbench',
               'unified-toolbar--icon-only': isIconMode || isMobileOrTablet,
               'unified-toolbar--mobile-collapsed':
                 isMobileOrTablet && isMobileCollapsed,
@@ -562,12 +577,13 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = React.memo(
           <div className="unified-toolbar__section unified-toolbar__section--fixed-bottom">
             <BottomActionsSection
               projectDrawerOpen={projectDrawerOpen}
-              onProjectDrawerToggle={onProjectDrawerToggle || (() => {})}
+              onProjectDrawerToggle={onProjectDrawerToggle || (() => undefined)}
               toolboxDrawerOpen={toolboxDrawerOpen}
               onToolboxDrawerToggle={onToolboxDrawerToggle}
               taskPanelExpanded={taskPanelExpanded}
               onTaskPanelToggle={handleTaskPanelToggle}
               showLocalDataClear={!isMobileOrTablet}
+              taskButtonContainer={canvasLayout === 'workbench' ? taskButtonContainer : null}
             />
           </div>
         </Island>

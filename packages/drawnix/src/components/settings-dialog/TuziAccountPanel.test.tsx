@@ -22,6 +22,8 @@ const {
   rotateManagedProvider,
   synchronizeTuziManagedProviders,
   discoverAndUseAllTuziProviderModels,
+  bridgeState,
+  createBridgeToken,
 } = vi.hoisted(() => ({
   ensureManagedProviders: vi.fn(),
   getAccount: vi.fn(),
@@ -34,6 +36,17 @@ const {
   rotateManagedProvider: vi.fn(),
   synchronizeTuziManagedProviders: vi.fn(),
   discoverAndUseAllTuziProviderModels: vi.fn(),
+  bridgeState: {
+    connected: false,
+    context: null as null | { status: 'ready' | 'need_system_token' },
+  },
+  createBridgeToken: vi.fn(),
+}));
+
+vi.mock('../../services/tuzi-postmessage-bridge', () => ({
+  isTuziBridgeConnected: () => bridgeState.connected,
+  getTuziBridgeContext: () => bridgeState.context,
+  createTuziSystemToken: createBridgeToken,
 }));
 
 vi.mock('../../services/tuzi-session-api', () => ({
@@ -83,6 +96,8 @@ vi.mock('../../services/tuzi-embedded-config', () => ({
 describe('TuziAccountPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    bridgeState.connected = false;
+    bridgeState.context = null;
     window.localStorage.clear();
     window.localStorage.setItem('opentu.tuzi.systemToken.v1', 'system-token');
     window.localStorage.setItem('opentu.tuzi.systemUserId.v1', '40832');
@@ -192,6 +207,30 @@ describe('TuziAccountPanel', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it('shows token creation only after a confirmed Tuzi embedding reports a missing token', async () => {
+    window.localStorage.removeItem('opentu.tuzi.systemToken.v1');
+    const { TuziAccountPanel } = await import('./TuziAccountPanel');
+
+    bridgeState.context = { status: 'need_system_token' };
+    const standalone = render(<TuziAccountPanel />);
+    expect(screen.queryByRole('button', { name: '创建系统令牌' })).toBeNull();
+    expect(screen.getByLabelText('Tuzi 用户 ID')).not.toBeNull();
+    expect(screen.getAllByLabelText('系统访问令牌').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '连接' })).not.toBeNull();
+    standalone.unmount();
+
+    bridgeState.connected = true;
+    bridgeState.context = { status: 'ready' };
+    const connected = render(<TuziAccountPanel />);
+    expect(screen.queryByRole('button', { name: '创建系统令牌' })).toBeNull();
+    connected.unmount();
+
+    bridgeState.context = { status: 'need_system_token' };
+    render(<TuziAccountPanel />);
+    expect(screen.getByRole('button', { name: '创建系统令牌' })).not.toBeNull();
+    expect(document.querySelector('input#tuzi-system-token')).toBeNull();
   });
 
   it('clears local account credentials and managed providers on logout', async () => {

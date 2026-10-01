@@ -121,18 +121,17 @@ body {
     min-height: 100vh;
     width: 100%;
     overflow: hidden;
-    /* 禁用触摸缩放 - 完全禁止 pinch-zoom */
-    touch-action: none;
-    -ms-touch-action: none;
+    /* 由具体工作区声明手势，避免阻断页面滚动。 */
+    touch-action: auto;
+    -ms-touch-action: auto;
 }
 
 #root {
     height: 100%;
     width: 100%;
     overflow: hidden;
-    /* 同样完全禁用触摸动作，防止页面缩放 */
-    touch-action: none;
-    -ms-touch-action: none;
+    touch-action: auto;
+    -ms-touch-action: auto;
 }
 
 /* 品牌色彩应用到常用元素 */

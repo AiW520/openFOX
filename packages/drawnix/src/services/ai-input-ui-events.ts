@@ -18,7 +18,11 @@ export interface AIInputPrefillImage {
   maskImage?: string;
 }
 
-export type AIInputPrefillSource = 'canvas-toolbar' | 'task-queue' | 'dialog';
+export type AIInputPrefillSource =
+  | 'canvas-toolbar'
+  | 'task-queue'
+  | 'dialog'
+  | 'new-experience';
 
 export interface AIInputPrefillEventDetail {
   generationType: GenerationType;
@@ -34,6 +38,9 @@ export interface AIInputPrefillEventDetail {
 
 export const AI_INPUT_FOCUS_EVENT = 'aitu:ai-input-focus';
 export const AI_INPUT_PREFILL_EVENT = 'aitu:ai-input-prefill';
+
+let prefillConsumerCount = 0;
+let pendingPrefill: AIInputPrefillEventDetail | null = null;
 
 export function resolvePptExplainerFrameIds(
   orderedFrameIds: readonly string[],
@@ -74,5 +81,36 @@ export function requestAIInputPrefill(detail: AIInputPrefillEventDetail): void {
     return;
   }
 
+  if (prefillConsumerCount === 0) {
+    pendingPrefill = detail;
+    return;
+  }
   window.dispatchEvent(new CustomEvent(AI_INPUT_PREFILL_EVENT, { detail }));
+}
+
+export function registerAIInputPrefillConsumer(
+  consumer: (detail: AIInputPrefillEventDetail) => void
+): () => void {
+  if (typeof window === 'undefined') {
+    return () => undefined;
+  }
+
+  const handlePrefill = (event: Event) => {
+    const detail = (event as CustomEvent<AIInputPrefillEventDetail>).detail;
+    if (detail) consumer(detail);
+  };
+
+  prefillConsumerCount += 1;
+  window.addEventListener(AI_INPUT_PREFILL_EVENT, handlePrefill);
+
+  const queued = pendingPrefill;
+  pendingPrefill = null;
+  if (queued) {
+    queueMicrotask(() => consumer(queued));
+  }
+
+  return () => {
+    window.removeEventListener(AI_INPUT_PREFILL_EVENT, handlePrefill);
+    prefillConsumerCount = Math.max(0, prefillConsumerCount - 1);
+  };
 }

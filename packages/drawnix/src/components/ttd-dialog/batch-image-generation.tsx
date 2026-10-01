@@ -348,6 +348,7 @@ function getDefaultTasks(): TaskRow[] {
 }
 
 interface BatchImageGenerationProps {
+  workbench?: boolean;
   onSwitchToSingle?: () => void;
   selectedModel?: string;
   selectedModelRef?: ModelRef | null;
@@ -356,6 +357,7 @@ interface BatchImageGenerationProps {
 }
 
 const BatchImageGeneration: React.FC<BatchImageGenerationProps> = ({
+  workbench = false,
   onSwitchToSingle,
   selectedModel: controlledSelectedModel,
   selectedModelRef: controlledSelectedModelRef,
@@ -474,7 +476,7 @@ const BatchImageGeneration: React.FC<BatchImageGenerationProps> = ({
   const historyIndexRef = useRef<number>(-1);
   const isUndoRedoRef = useRef<boolean>(false); // 标记是否正在撤销/重做，避免重复记录历史
 
-  const [showLibrary, setShowLibrary] = useState(true); // 默认显示
+  const [showLibrary, setShowLibrary] = useState(() => !workbench);
   const [selectionTooltipVisible, setSelectionTooltipVisible] = useState(false); // 选中统计气泡可见性
 
   // 填充拖拽
@@ -3270,7 +3272,13 @@ const BatchImageGeneration: React.FC<BatchImageGenerationProps> = ({
   };
 
   return (
-    <div ref={batchRootRef} className="batch-image-generation" tabIndex={-1}>
+    <div
+      ref={batchRootRef}
+      className={`batch-image-generation${
+        workbench ? ' batch-image-generation--workbench' : ''
+      }`}
+      tabIndex={-1}
+    >
       <div className="batch-main-content">
         {/* 工具栏 - 按用户动线排列：导入数据 → 选择操作 → 删除 → 下载 */}
         <div className="batch-toolbar">
@@ -3407,20 +3415,38 @@ const BatchImageGeneration: React.FC<BatchImageGenerationProps> = ({
                 ? '下载选中图片'
                 : 'Download'}
             </Button>
+            {workbench && (
+              <div className="batch-knowledge-context-wrapper">
+                <KnowledgeNoteContextSelector
+                  value={knowledgeContextRefs}
+                  onChange={setKnowledgeContextRefs}
+                  disabled={isSubmitting}
+                  language={language}
+                  label={language === 'zh' ? '上下文' : 'Context'}
+                />
+              </div>
+            )}
           </div>
 
           <div className="toolbar-right">
-            <div className="batch-knowledge-context-wrapper">
-              <KnowledgeNoteContextSelector
-                value={knowledgeContextRefs}
-                onChange={setKnowledgeContextRefs}
-                disabled={isSubmitting}
-                language={language}
-                label={language === 'zh' ? '上下文' : 'Context'}
-              />
-            </div>
+            {!workbench && (
+              <div className="batch-knowledge-context-wrapper">
+                <KnowledgeNoteContextSelector
+                  value={knowledgeContextRefs}
+                  onChange={setKnowledgeContextRefs}
+                  disabled={isSubmitting}
+                  language={language}
+                  label={language === 'zh' ? '上下文' : 'Context'}
+                />
+              </div>
+            )}
 
             {/* 模型选择器 */}
+            {workbench && (
+              <span className="batch-model-label">
+                {language === 'zh' ? '模型' : 'Model'}
+              </span>
+            )}
             <div
               className="model-selector-wrapper"
               data-track="batch_model_select"
@@ -3472,18 +3498,35 @@ const BatchImageGeneration: React.FC<BatchImageGenerationProps> = ({
 
             <span className="toolbar-divider"></span>
 
-            {!hideLibrarySidebar && !showLibrary && (
+            {!hideLibrarySidebar && (workbench || !showLibrary) && (
               <HoverTip
-                content={language === 'zh' ? '显示素材库' : 'Show Library'}
+                content={
+                  showLibrary
+                    ? language === 'zh'
+                      ? '收起素材库'
+                      : 'Hide library'
+                    : language === 'zh'
+                    ? '展开素材库'
+                    : 'Show library'
+                }
                 theme="light"
               >
                 <Button
                   variant="outline"
                   theme="default"
                   icon={<MediaLibraryIcon size={16} />}
-                  onClick={() => setShowLibrary(true)}
+                  onClick={() => setShowLibrary((current) => !current)}
+                  aria-expanded={showLibrary}
+                  aria-label={language === 'zh' ? '素材库' : 'Library'}
+                  className={workbench ? 'batch-library-toggle' : undefined}
                   data-track="batch_library_show_click"
-                />
+                >
+                  {workbench
+                    ? language === 'zh'
+                      ? '素材库'
+                      : 'Library'
+                    : null}
+                </Button>
               </HoverTip>
             )}
           </div>

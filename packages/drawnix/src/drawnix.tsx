@@ -244,6 +244,10 @@ const CanvasAudioPlayer = lazy(() =>
 );
 
 export type DrawnixProps = {
+  /** New canvas chrome is opt-in; existing consumers keep the legacy layout. */
+  canvasLayout?: 'legacy' | 'workbench';
+  onBackToNewHome?: () => void;
+  onSwitchToLegacy?: () => void;
   value: PlaitElement[];
   viewport?: Viewport;
   theme?: PlaitTheme;
@@ -306,6 +310,9 @@ function detectMobileViewport(): boolean {
 }
 
 export const Drawnix: React.FC<DrawnixProps> = ({
+  canvasLayout = 'legacy',
+  onBackToNewHome,
+  onSwitchToLegacy,
   value,
   viewport,
   theme,
@@ -909,6 +916,9 @@ export const Drawnix: React.FC<DrawnixProps> = ({
                       viewport={viewport}
                       theme={theme}
                       options={options}
+                      canvasLayout={canvasLayout}
+                      onBackToNewHome={onBackToNewHome}
+                      onSwitchToLegacy={onSwitchToLegacy}
                       plugins={plugins}
                       containerRef={containerRef}
                       appState={appState}
@@ -970,6 +980,9 @@ export const Drawnix: React.FC<DrawnixProps> = ({
 
 // Internal component that uses ChatDrawer context
 interface DrawnixContentProps {
+  canvasLayout: 'legacy' | 'workbench';
+  onBackToNewHome?: () => void;
+  onSwitchToLegacy?: () => void;
   value: PlaitElement[];
   viewport?: Viewport;
   theme?: PlaitTheme;
@@ -1022,6 +1035,9 @@ interface DrawnixContentProps {
 }
 
 const DrawnixContent: React.FC<DrawnixContentProps> = ({
+  canvasLayout,
+  onBackToNewHome,
+  onSwitchToLegacy,
   value,
   viewport,
   theme,
@@ -1708,6 +1724,7 @@ const DrawnixContent: React.FC<DrawnixContentProps> = ({
   return (
     <div
       className={classNames('drawnix', {
+        'drawnix--workbench': canvasLayout === 'workbench',
         'drawnix--mobile': appState.isMobile,
       })}
       ref={containerRef}
@@ -1751,6 +1768,9 @@ const DrawnixContent: React.FC<DrawnixContentProps> = ({
           <MultiSelectionHandles />
           {/* 统一左侧工具栏 (桌面端和移动端一致) */}
           <UnifiedToolbar
+            canvasLayout={canvasLayout}
+            onBackToNewHome={onBackToNewHome}
+            onSwitchToLegacy={onSwitchToLegacy}
             projectDrawerOpen={projectDrawerOpen}
             onProjectDrawerToggle={handleProjectDrawerToggle}
             toolboxDrawerOpen={toolboxDrawerOpen}
@@ -1789,7 +1809,10 @@ const DrawnixContent: React.FC<DrawnixContentProps> = ({
           </Suspense>
           {appState.openDialogTypes.size > 0 && (
             <Suspense fallback={null}>
-              <TTDDialog container={containerRef.current}></TTDDialog>
+              <TTDDialog
+                container={containerRef.current}
+                canvasLayout={canvasLayout}
+              />
             </Suspense>
           )}
           {appState.openSettings && (
@@ -1802,6 +1825,7 @@ const DrawnixContent: React.FC<DrawnixContentProps> = ({
           </Suspense>
           <Suspense fallback={null}>
             <DeferredAIInputBar
+              canvasLayout={canvasLayout}
               isDataReady={isDataReady}
               currentBoardId={currentBoardId}
               activationKey={0}

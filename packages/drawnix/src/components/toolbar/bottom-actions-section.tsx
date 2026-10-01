@@ -6,6 +6,10 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ListChecks } from 'lucide-react';
+import { useI18n } from '../../i18n';
+import { HoverTip } from '../shared/hover';
 import { Badge } from 'tdesign-react';
 import { ToolButton } from '../tool-button';
 import { useTaskQueue } from '../../hooks/useTaskQueue';
@@ -64,6 +68,8 @@ export interface BottomActionsSectionProps {
   onTaskPanelToggle: () => void;
   /** 是否显示本地数据清理入口（仅桌面端） */
   showLocalDataClear?: boolean;
+  /** Render the same task action in the compact topbar, keeping queue state here. */
+  taskButtonContainer?: HTMLElement | null;
 }
 
 export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
@@ -74,7 +80,9 @@ export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
   taskPanelExpanded,
   onTaskPanelToggle,
   showLocalDataClear = false,
+  taskButtonContainer,
 }) => {
+  const { language } = useI18n();
   const { activeTasks, completedTasks, failedTasks } = useTaskQueue();
   const [acknowledgedFailedAt, setAcknowledgedFailedAt] =
     useState(readFailedTaskAckAt);
@@ -110,6 +118,50 @@ export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
     totalTasks > 0
       ? `任务队列 (生成中: ${activeTasks.length}, 已完成: ${completedTasks.length}, 失败: ${failedTasks.length})`
       : '任务队列 (暂无任务)';
+
+  const taskButton = (
+    <div className="bottom-actions-section__task-wrapper">
+      <Badge count={activeTasks.length} showZero={false} offset={[6, -6]}>
+        {taskButtonContainer ? (
+          <HoverTip content={taskTooltip} placement="bottom">
+            <button
+              type="button"
+              className="workbench-topbar__button"
+              aria-label={language === 'zh' ? '任务队列' : 'Task queue'}
+              aria-pressed={taskPanelExpanded}
+              data-track="toolbar_click_tasks"
+              data-testid="toolbar-tasks"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onTaskPanelToggle}
+            >
+              <ListChecks size={16} aria-hidden="true" />
+              <span>{language === 'zh' ? '任务' : 'Tasks'}</span>
+            </button>
+          </HoverTip>
+        ) : (
+          <ToolButton
+            type="icon"
+            icon={<TaskIcon />}
+            aria-label="任务队列"
+            tooltip={taskTooltip}
+            tooltipPlacement="right"
+            selected={taskPanelExpanded}
+            visible={true}
+            data-track="toolbar_click_tasks"
+            data-testid="toolbar-tasks"
+            onPointerDown={(e) => e.event.stopPropagation()}
+            onClick={onTaskPanelToggle}
+          />
+        )}
+      </Badge>
+      {activeTasks.length > 0 && (
+        <div className="bottom-actions-section__status bottom-actions-section__status--active" />
+      )}
+      {hasUnseenFailedTasks && activeTasks.length === 0 && (
+        <div className="bottom-actions-section__status bottom-actions-section__status--failed" />
+      )}
+    </div>
+  );
 
   return (
     <div className="bottom-actions-section">
@@ -152,38 +204,9 @@ export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
         />
       )}
 
-      {/* 任务队列按钮 - 使用 ToolButton + Badge */}
-      <div className="bottom-actions-section__task-wrapper">
-        <Badge
-          count={activeTasks.length > 0 ? activeTasks.length : 0}
-          showZero={false}
-          offset={[6, -6]}
-        >
-          <ToolButton
-            type="icon"
-            icon={<TaskIcon />}
-            aria-label="任务队列"
-            tooltip={taskTooltip}
-            tooltipPlacement="right"
-            selected={taskPanelExpanded}
-            visible={true}
-            data-track="toolbar_click_tasks"
-            data-testid="toolbar-tasks"
-            onPointerDown={(e) => {
-              e.event.stopPropagation();
-            }}
-            onClick={onTaskPanelToggle}
-          />
-        </Badge>
-
-        {/* 状态指示点 */}
-        {activeTasks.length > 0 && (
-          <div className="bottom-actions-section__status bottom-actions-section__status--active" />
-        )}
-        {hasUnseenFailedTasks && activeTasks.length === 0 && (
-          <div className="bottom-actions-section__status bottom-actions-section__status--failed" />
-        )}
-      </div>
+      {taskButtonContainer
+        ? createPortal(taskButton, taskButtonContainer)
+        : taskButton}
 
       {showLocalDataClear ? (
         <>

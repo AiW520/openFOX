@@ -42,11 +42,12 @@ export type LinkState = {
 };
 
 export type DialogInitialData = {
+  imageGenerationMode?: 'single' | 'batch';
   prompt?: string;
   width?: number;
   height?: number;
   duration?: number;
-  resultUrl?: string;  // 已生成的结果URL,用于显示预览
+  resultUrl?: string; // 已生成的结果URL,用于显示预览
   [key: string]: any;
 };
 
@@ -77,13 +78,19 @@ export type DrawnixState = {
 
 export const DrawnixContext = createContext<{
   appState: DrawnixState;
-  setAppState: (appState: DrawnixState | ((prev: DrawnixState) => DrawnixState)) => void;
+  setAppState: (
+    appState: DrawnixState | ((prev: DrawnixState) => DrawnixState)
+  ) => void;
   board: DrawnixBoard | null;
 } | null>(null);
 
+export const useOptionalDrawnix = () => useContext(DrawnixContext);
+
 export const useDrawnix = (): {
   appState: DrawnixState;
-  setAppState: (appState: DrawnixState | ((prev: DrawnixState) => DrawnixState)) => void;
+  setAppState: (
+    appState: DrawnixState | ((prev: DrawnixState) => DrawnixState)
+  ) => void;
   board: DrawnixBoard | null;
   openDialog: (dialogType: DialogType, initialData?: DialogInitialData) => void;
   closeDialog: (dialogType: DialogType) => void;
@@ -96,7 +103,10 @@ export const useDrawnix = (): {
     );
   }
 
-  const openDialog = (dialogType: DialogType, initialData?: DialogInitialData) => {
+  const openDialog = (
+    dialogType: DialogType,
+    initialData?: DialogInitialData
+  ) => {
     // 使用函数式更新，确保始终使用最新的状态
     context.setAppState((prevState) => {
       const newOpenDialogTypes = new Set(prevState.openDialogTypes);

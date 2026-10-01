@@ -4,6 +4,7 @@ import { ModelHealthProvider } from '../../contexts/ModelHealthContext';
 import { AIInputBar } from '../ai-input-bar/AIInputBar';
 
 interface DeferredAIInputBarProps {
+  canvasLayout?: 'legacy' | 'workbench';
   isDataReady: boolean;
   currentBoardId?: string | null;
   activationKey: number;
@@ -12,6 +13,7 @@ interface DeferredAIInputBarProps {
 }
 
 export function DeferredAIInputBar({
+  canvasLayout = 'legacy',
   isDataReady,
   currentBoardId,
   activationKey,
@@ -42,6 +44,7 @@ export function DeferredAIInputBar({
       <ModelHealthProvider>
         <div ref={containerRef}>
           <AIInputBar
+            canvasLayout={canvasLayout}
             isDataReady={isDataReady}
             currentBoardId={currentBoardId}
             onEnableToolWindows={onEnableToolWindows}

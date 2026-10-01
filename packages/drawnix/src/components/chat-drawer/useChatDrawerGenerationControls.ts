@@ -490,6 +490,10 @@ export function useChatDrawerGenerationControls(
     setSelectedCount,
     currentModels,
     handleModelSelect,
+    imageModels,
+    videoModels,
+    textModels,
+    audioModels,
     handleModelConfigSelect,
     handleParamSelect,
   };

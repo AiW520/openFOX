@@ -80,6 +80,7 @@
   },
   "private": true,
   "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
     "@floating-ui/react": "^0.26.24",
     "@milkdown/crepe": "^7.18.0",
     "@milkdown/kit": "^7.18.0",

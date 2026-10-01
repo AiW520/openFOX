@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenTu · 让灵感在画布上成形</title>
+    <meta
+      name="description"
+      content="OpenTu 是融合 AI 生成与无限画布的开源创作工具，支持图片、视频、音频与文案创作，让想法、素材与作品在同一处连接。"
+    />
+    <meta property="og:title" content="OpenTu · 让灵感在画布上成形" />
+    <meta
+      property="og:description"
+      content="从一句描述开始，探索 AI 创作，再把想法与素材整理到无限画布。"
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#f5f5f7" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: #1d1d1f;
+        background: #f5f5f7;
+        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
+          system-ui, sans-serif;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      a:focus-visible {
+        outline: 2px solid #0071e3;
+        outline-offset: 5px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22px 6%;
+        border-bottom: 1px solid #e5e5ee;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 19px;
+        font-weight: 750;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        background: #1d1d1f;
+        color: white;
+      }
+      .github {
+        color: #737586;
+        font-size: 13px;
+      }
+      main {
+        max-width: 1040px;
+        margin: auto;
+        padding: 84px 28px 64px;
+      }
+      .eyebrow {
+        color: #6e6e73;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+      }
+      h1 {
+        margin: 20px 0;
+        font-size: clamp(38px, 5vw, 66px);
+        line-height: 1.25;
+        font-weight: 650;
+        letter-spacing: -0.045em;
+      }
+      h1 span {
+        color: #1d1d1f;
+      }
+      .lead {
+        max-width: 580px;
+        color: #737586;
+        font-size: 17px;
+        line-height: 1.9;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        margin: 32px 0 56px;
+        font-size: 13px;
+      }
+      .primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 28px;
+        padding: 14px 20px;
+        border-radius: 999px;
+        background: #0071e3;
+        color: white;
+      }
+      .preview {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        gap: 28px;
+        padding: 30px;
+        border: 1px solid #e5e5ee;
+        border-radius: 24px;
+        background: white;
+      }
+      .board {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-height: 190px;
+        background: radial-gradient(#d9d8e8 1px, transparent 1px);
+        background-size: 14px 14px;
+        border-radius: 18px;
+      }
+      .note {
+        padding: 20px 15px;
+        border: 1px solid #e2e0f3;
+        border-radius: 16px;
+        background: #eef6ff;
+        color: #0071e3;
+        font-size: 14px;
+      }
+      .note:last-child {
+        background: #f2f2f7;
+        border-color: #e5e5ea;
+        color: #6e6e73;
+      }
+      h2 {
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .preview p,
+      .feature p {
+        color: #737586;
+        font-size: 13px;
+        line-height: 1.9;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 32px;
+        margin-top: 38px;
+      }
+      .feature {
+        border-top: 1px solid #e5e5ee;
+        padding-top: 18px;
+      }
+      .feature small {
+        color: #0071e3;
+      }
+      .feature h2 {
+        font-size: 16px;
+      }
+      footer {
+        margin-top: 44px;
+        color: #898995;
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      @media (max-width: 650px) {
+        main {
+          padding: 44px 20px;
+        }
+        .preview,
+        .features {
+          grid-template-columns: 1fr;
+        }
+        .preview {
+          padding: 20px;
+          gap: 12px;
+        }
+        .features {
+          gap: 14px;
+        }
+        .actions {
+          margin-bottom: 36px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./"><span class="mark">O</span>OpenTu</a
+      ><a
+        class="github"
+        href="https://github.com/ljquan/opentu"
+        target="_blank"
+        rel="noreferrer"
+        >GitHub ↗</a
+      >
+    </header>
+    <main>
+      <div class="eyebrow">OpenTu 创作工作台</div>
+      <h1>创作与整理，<br /><span>在同一个工作台。</span></h1>
+      <p class="lead">
+        OpenTu 是融合 AI
+        生成与无限画布的开源创作工具。描述你脑海中的画面，把想法、素材和生成结果放在一起，慢慢打磨成自己的作品。
+      </p>
+      <div class="actions">
+        <a class="primary" href="./">开始创作 <span>→</span></a
+        ><a href="#possibilities">了解 OpenTu ↓</a>
+      </div>
+      <section class="preview" id="possibilities" aria-label="创作方式介绍">
+        <div class="board" aria-label="想法连接到作品的示意图">
+          <span class="note">一句灵感<br /><small>描述 · 探索</small></span
+          ><span aria-hidden="true">→</span
+          ><span class="note">一张画布<br /><small>生成 · 整理</small></span>
+        </div>
+        <div>
+          <h2>让创作留在同一个空间</h2>
+          <p>
+            从提示词开始，选择适合的模型；进入画布继续创作，把图片与文字整理成清晰的视觉表达。
+          </p>
+        </div>
+      </section>
+      <section class="features" aria-label="项目能力">
+        <article class="feature">
+          <small>01 / 创作</small>
+          <h2>多种表达，从这里开始</h2>
+          <p>
+            图片、视频、音频与文案，用适合内容的方式表达。可用能力取决于你配置的模型服务。
+          </p>
+        </article>
+        <article class="feature">
+          <small>02 / 组织</small>
+          <h2>无限画布，自由整理</h2>
+          <p>
+            把素材、提示词与结果放在同一张画布上，组合、编辑，建立属于你的创作空间。
+          </p>
+        </article>
+        <article class="feature">
+          <small>03 / 连接</small>
+          <h2>模型选择，由你决定</h2>
+          <p>
+            接入自己的模型服务，按需要选择模型与参数，让创作方式跟随你的习惯。
+          </p>
+        </article>
+      </section>
+      <footer>
+        OpenTu · 开源 AI
+        创作工具。生成需要可用的模型服务配置，费用由对应服务商决定。
+      </footer>
+    </main>
+  </body>
+</html>

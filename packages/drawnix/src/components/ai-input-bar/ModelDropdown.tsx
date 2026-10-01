@@ -42,7 +42,7 @@ import { ATTACHED_ELEMENT_CLASS_NAME } from '@plait/core';
 import { Z_INDEX } from '../../constants/z-index';
 import { useControllableState } from '../../hooks/useControllableState';
 import { useProviderProfiles } from '../../hooks/use-provider-profiles';
-import { useDrawnix } from '../../hooks/use-drawnix';
+import { useOptionalDrawnix } from '../../hooks/use-drawnix';
 import {
   ModelVendorMark,
   getDiscoveryVendorLabel,
@@ -295,7 +295,7 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
   emptyText,
   strictModelList = false,
 }) => {
-  const { setAppState } = useDrawnix();
+  const drawnix = useOptionalDrawnix();
   useSyncExternalStore(subscribeToModelDiscovery, getModelDiscoveryRevision);
   const { value: isOpen, setValue: setIsOpen } = useControllableState({
     controlledValue: controlledIsOpen,
@@ -707,8 +707,9 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
           }
     );
     setIsOpen(false);
-    setAppState((prev) => ({ ...prev, openSettings: true }));
-  }, [setAppState, setIsOpen, tuziMode]);
+    if (!drawnix) return;
+    drawnix.setAppState((prev) => ({ ...prev, openSettings: true }));
+  }, [drawnix, setIsOpen, tuziMode]);
 
   // 当过滤结果变化时，高亮选中模型或重置到第一项
   useEffect(() => {
@@ -1279,7 +1280,7 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
               searchQuery={searchQuery}
               compact
               tabsFooter={
-                showProviderAction ? (
+                showProviderAction && drawnix ? (
                   <button
                     type="button"
                     className="model-dropdown__provider-action"

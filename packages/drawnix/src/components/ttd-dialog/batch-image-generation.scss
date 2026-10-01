@@ -831,6 +831,137 @@
   }
 }
 
+.batch-image-generation--workbench {
+  gap: 12px;
+  min-height: 0;
+  padding: 14px;
+  background: #f6f7f9;
+
+  .batch-main-content {
+    min-height: 0;
+    padding: 0;
+    border: 1px solid #e6e9ed;
+    border-radius: 10px;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .batch-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid #e6e9ed;
+
+    .toolbar-right {
+      order: -1;
+      display: flex;
+      flex-wrap: nowrap;
+      min-height: 72px;
+      gap: 10px;
+      padding: 14px 18px;
+      background: #fff;
+    }
+
+    .toolbar-left {
+      min-height: 52px;
+      gap: 8px;
+      padding: 8px 18px;
+      background: #fafbfc;
+      border-top: 1px solid #eef0f3;
+    }
+
+    .toolbar-divider {
+      background: #e1e5e9;
+    }
+
+    .toolbar-right .toolbar-divider {
+      margin-left: auto;
+    }
+  }
+
+  .batch-model-label {
+    color: #626b76;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .model-selector-wrapper {
+    min-width: 220px;
+    max-width: 340px;
+    flex: 1 1 220px;
+  }
+
+  .batch-generate-btn {
+    margin-left: auto;
+    height: 38px !important;
+    padding: 0 18px !important;
+    border-radius: 8px !important;
+    background: #2768d8 !important;
+    box-shadow: none !important;
+
+    &:hover:not(:disabled) {
+      transform: none;
+      background: #1c56bc !important;
+      box-shadow: 0 2px 8px rgba(31, 93, 192, 0.18) !important;
+    }
+  }
+
+  .batch-library-toggle {
+    height: 38px;
+    border-radius: 8px;
+  }
+
+  .batch-knowledge-context-wrapper {
+    margin-left: auto;
+  }
+
+  .excel-table-container {
+    min-height: 0;
+    margin: 12px 14px 0;
+    border-color: #e5e8ec;
+    border-radius: 8px;
+  }
+
+  .excel-table th {
+    background: #f7f8fa;
+    color: #59636f;
+  }
+
+  .hint-text {
+    margin: 0;
+    padding: 9px 14px;
+    color: #88919c;
+    text-align: left;
+  }
+
+  .image-library-sidebar {
+    width: 252px;
+    border-color: #e6e9ed;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .batch-image-generation--workbench {
+    .batch-toolbar .toolbar-left {
+      flex-wrap: wrap;
+    }
+
+    .batch-knowledge-context-wrapper {
+      margin-left: 0;
+    }
+
+    .image-library-sidebar {
+      width: 220px;
+    }
+  }
+}
+
 // 外部弹窗覆盖样式
 .image-preview-dialog {
   &.t-dialog {

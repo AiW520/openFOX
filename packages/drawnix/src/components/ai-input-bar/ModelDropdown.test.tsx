@@ -46,6 +46,7 @@ vi.mock('../../utils/runtime-model-discovery', () => ({
 
 vi.mock('../../hooks/use-drawnix', () => ({
   useDrawnix: () => ({ setAppState: vi.fn() }),
+  useOptionalDrawnix: () => ({ setAppState: vi.fn() }),
 }));
 
 vi.mock('../../hooks/use-provider-profiles', () => ({
