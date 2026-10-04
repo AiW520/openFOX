@@ -1,6 +1,125 @@
 {
   "versions": [
     {
+      "version": "1.1.24",
+      "date": "2026-10-04",
+      "changes": {
+        "features": [
+          "add new OpenTu creative experience",
+          "add new Tuzi text models (#274)",
+          "支持 MiniMax-H3 视频输入 (#273)",
+          "add Tuzi postMessage onboarding",
+          "complete MiniMax-H3 V2 workflow",
+          "initialize OpenTu from Tuzi handoff",
+          "完善 Tuzi 账户工作区与日志图片预览 (#260)",
+          "support dragging images into reference inputs (#251)",
+          "融合 AI 语义分层与图片生成增强 (#250)",
+          "使用系统令牌连接 Tuzi 账户",
+          "适配 Seedance 2.5 视频模型 (#239)",
+          "add Tuzi account workspace and managed keys",
+          "add Tuzi URL token integration mode",
+          "统一跨媒体 AI 任务栏目标控制 (#227)",
+          "图片预览显示实际尺寸 (#225)",
+          "支持在 AI 生图描述框粘贴参考图",
+          "增加网站本地数据清理入口 (#212)",
+          "图片请求使用稳定任务 ID (#205)",
+          "支持批量出图预览删除单张结果 (#204)",
+          "add pr.opentu.ai prerelease staging with promote workflow",
+          "支持供应商添加自定义模型",
+          "支持AI任务栏跟随生成图片目标",
+          "完善图片请求 ID 找回与失败重试体验",
+          "reply to workflow image results"
+        ],
+        "fixes": [
+          "align merged Tuzi session sync with postMessage onboarding",
+          "修复下载完成后提示持续转圈 (#276)",
+          "align MiniMax reference image limits (#275)",
+          "修复等待执行循环 (#272)",
+          "seedance2.0/2.5 的参数修复",
+          "为批量图片下载增加加载状态",
+          "correct Image 2 and 2.5 sizes",
+          "URL 入口等待 Tuzi 模型同步完成",
+          "默认启用 Tuzi 集成",
+          "修复 PPT 讲解视频模型路由与生图复用",
+          "修复 Seedance 2.5 比例参数适配 (#242)",
+          "preserve generated image dimensions and canvas rendering (#240)",
+          "严格使用用户配置的供应商地址 (#235)",
+          "centralize shared database lifecycle",
+          "修复 Gemini 3.1 图片渲染失败 (#224)",
+          "展示上游图片实际尺寸 (#207)",
+          "修复本地缓存哈希识别与测试隔离",
+          "修复本地图片目标跟随与缩略图串图",
+          "repair Tuzi routing and image endpoint fallback (#201)",
+          "stabilize provider endpoints and image generation (#200)",
+          "下线 jsDelivr/npm CDN 发布方案，改用自建服务器直发",
+          "修复任务栏PR检查失败",
+          "preserve remote media cache URL contract",
+          "支持无分界线拼图智能拆图"
+        ],
+        "improvements": [
+          "同步更新web应用版本至1.0.4并更新构建时间",
+          "发布v1.0.3并完成多项优化修复",
+          "收口任务栏PR修改范围",
+          "同步 1.0.0 前端版本元数据",
+          "修复：模型列表及数量获取问题修复",
+          "功能：补齐 GPT Image 2.5 尺寸与分辨率参数",
+          "功能：支持 MiniMax-H3 V1/V2 专用视频接口 (#262)",
+          "功能：完善图片 Request ID 幂等恢复与安全切换 (#261)",
+          "功能：接入 GPT Image 2.5 Sunburst 与 Flare (#259)",
+          "修复：Tuzi 图片请求恢复直连上游 (#258)",
+          "修复：提高生产图片同源代理请求体上限 (#257)",
+          "修复：加固 Tuzi 同源代理与请求标识 (#256)",
+          "接入 Tuzi GPT Image 2.5 图片模型 (#255)",
+          "优化 Tuzi 账户同步与模型加载体验 (#254)",
+          "修复生产环境图片请求恢复与轮询路由 (#253)",
+          "修复 AI 生图、批量生图与视频结果无法渲染 (#252)",
+          "修复 Suno 纯音乐、多音轨结果与画布播放 (#246)",
+          "修复：统一供应商设置页面跳转行为 (#245)",
+          "修复：统一供应商设置页面跳转行为",
+          "功能：新增可恢复的 PPT 讲解视频工作流 (#231)",
+          "新增 Tuzi 账户管理 (#237)",
+          "新增 Tuzi 账户管理",
+          "修复：任务队列多结果无法插入画布 (#236)",
+          "Revert \"feat: add Tuzi URL token integration mode\"",
+          "Revert \"feat: add Tuzi account workspace and managed keys\"",
+          "Revert \"fix(storage): centralize shared database lifecycle\"",
+          "功能：调整任务栏跟随控件布局 (#233)",
+          "修复：永久关闭跟随后禁止覆盖原目标 (#229)",
+          "功能：增加画布联想引用与平滑连线 (#228)",
+          "修复图片请求中断恢复与任务执行生命周期竞态",
+          "修复：恢复任务栏历史提示词虚化复用 (#222)",
+          "修复选中图片 Delete/Backspace 删除能力 (#218)",
+          "修复：支持 AI 生成素材导入参考图",
+          "文档：记录 PR 基线检查结果",
+          "功能：增加 AI 任务栏跟随永久开关",
+          "修复 AI 任务栏未发送草稿误触丢失 (#214)",
+          "功能：支持 AI 任务栏单图永久仅作参考 (#217)",
+          "功能：刷新默认模型并对齐 Seedance 2.0 官方接口 (#216)",
+          "修复：按图片保留任务栏草稿并增强图片插入可靠性 (#215)",
+          "功能：任务栏历史提示词按需复用 (#213)",
+          "修复任务栏多图生成覆盖原图 (#210)",
+          "功能：刷新默认模型目录并接入 Seedance 2.0 (#211)",
+          "修复 AI 任务栏跟随尺寸与局域网图片插入 (#209)",
+          "功能：支持关闭图片任务栏跟随并生成新图片 (#208)",
+          "功能：图片请求中断后按 Request ID 自动恢复轮询 (#206)",
+          "chore withdraw unsafe release versions",
+          "fix restrict API dev proxy to local hosts",
+          "fix production provider API routing",
+          "fix provider endpoint styles and logo routing",
+          "修复 tuzi-api 端点路由兜底",
+          "修复 PR190 合并阻塞问题",
+          "修复 CI pnpm 缺失导致构建失败",
+          "Disable CDN entry asset rewrites",
+          "修复 PR185 硬边界拆图误判风险",
+          "修复 PR188 文本内容数组归一化",
+          "修复多图生成 JSON 解析和默认模型迁移",
+          "修复首帧生图窗口复用状态"
+        ]
+      },
+      "type": "patch",
+      "highlights": "add new OpenTu creative experience"
+    },
+    {
       "version": "1.1.16",
       "date": "2026-09-26",
       "changes": {
@@ -424,8 +543,6 @@
           "fix production provider API routing"
         ]
       },
-      "status": "withdrawn",
-      "withdrawalReason": "生产构建仍可能把供应商 API 地址改写到 PR 域名，已由 1.0.8 替代，禁止部署或回滚到此版本。",
       "type": "patch",
       "highlights": "构建修复与稳定性改进"
     },
@@ -547,8 +664,6 @@
           "perf(changelog): 限制解析的版本数量以避免内存问题"
         ]
       },
-      "status": "withdrawn",
-      "withdrawalReason": "包含有缺陷的供应商 API 路由构建，已从发布服务器移除，禁止部署或回滚到此版本。",
       "type": "patch",
       "highlights": "add pr.opentu.ai prerelease staging with promote workflow"
     },
@@ -967,25 +1082,6 @@
       },
       "type": "patch",
       "highlights": "优化价格展示增加Bussiness"
-    },
-    {
-      "version": "0.6.96",
-      "date": "2026-05-01",
-      "changes": {
-        "features": [
-          "优化视频工作流批量生成",
-          "add image 3d transform panel"
-        ],
-        "fixes": [
-          "pass image transform context to AI"
-        ],
-        "improvements": [
-          "补充视频主体引用经验",
-          "更新应用版本号至0.6.95并刷新构建时间"
-        ]
-      },
-      "type": "patch",
-      "highlights": "优化视频工作流批量生成"
     }
   ]
 }
