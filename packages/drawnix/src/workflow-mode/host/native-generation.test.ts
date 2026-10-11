@@ -78,7 +78,7 @@ describe('native generation', () => {
       instrumental: 'true',
       continueClipId: 'clip-id',
       continueAt: 5,
-      mv: 'chirp-v3-5',
+      mv: 'chirp-v6',
     };
     const result = await generateNative(
       {

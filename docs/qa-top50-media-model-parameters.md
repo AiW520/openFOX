@@ -30,6 +30,26 @@
 
 尺寸通过读取实际图片二进制并使用 image-size 解析取得，不以 HTTP 200 或响应字段代替像素检查。仅核验每次第一张，其余 6 张未核验。响应图片仅在内存中读取，没有将生成结果写入用户画布或素材库。实际账单、其他比例/参考图/其他渠道未验证；这两次请求不能证明上游具体版本。原生浏览器连接失败只影响早期凭据访问，最终改用用户授权凭据直接测试 API，没有完成页面验收。
 
+## PR 297 再次同步 develop（2026-10-11）
+
+显式 fetch 后目标分支为 `origin/develop e0ee33c4`，已通过合并提交 `1e1bb4c5` 同步。冲突仅涉及工作流 `CHANGELOG.md` 和 `pending-test.mdx`，保留双方参数、Seedream、Suno v6 与媒体资源相关记录。没有删除上游功能或重新引入已撤回的 Image 2 扩展及新增水印。
+
+上游将 Suno 默认版本改为 v6，原生生成测试仍使用旧版 `chirp-v3-5` 夹具；本次将其改为 `chirp-v6`，与上游允许的版本一致，不修改音乐生产逻辑。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 合并后 27 文件联合回归 | 839 通过、4 个已记录基线失败，没有跳过测试 |
+| Suno/原生生成/模型配置专项复验 | 3 文件、179 项通过，与联合回归重叠，不累加 |
+| drawnix TypeScript | 通过，专项复验后再次执行通过 |
+| web 构建 | 通过，应用和 service worker 构建均完成 |
+| Suno 测试文件 ESLint | 0 errors、2 个原有 non-null assertion warnings |
+| OpenSpec strict | 通过 |
+| 差异与冲突检查 | git diff --check 通过，无未合并文件或残留冲突标记 |
+
+本轮日志：`/tmp/opentu-pr297-conflict-tests.log`、`/tmp/opentu-pr297-conflict-types.log`、`/tmp/opentu-pr297-conflict-build.log`、`/tmp/opentu-pr297-conflict-lint.log`。四个失败与下文既有断言一致；不更改或跳过断言来取得通过。本轮未执行页面测试或新增真实供应商请求。
+
+旧远程 CI run `38107581238` 针对旧 head `c0e88fa9` 的 PR 合并结果，失败步骤为 `nx affected -t test build` 的测试；web 构建通过，smoke test 未执行。日志包含工作流测试环境中 `bun:test`、WebCrypto、i18n 和 URL scheme 错误，不能归因于文档冲突，也不能以本地专项通过宣称远程 CI 通过。推送后的最新远程状态应单独核实。
+
 ## PR 297 历史结果
 
 | 检查 | 实际结果 |
