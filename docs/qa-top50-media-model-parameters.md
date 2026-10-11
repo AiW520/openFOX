@@ -13,9 +13,11 @@
 
 ## Seedream 名称修复与实测
 
-本地修复以 `96d56399` 为基线，尚未提交或更新 PR #297。实际完整 ID `doubao-seedream-5-0-lite-260128` 及经实测的 `seedream-5.0` 精确复用尺寸和 2K/3K 控件，保留请求 ID、profile、selectionKey 和短代码。`seedream-5.0` 描述不标为 Lite 或 Pro。未知近似 ID 不继承合同，不新增水印、Pro 字段或新分辨率档位。
+修复以 `96d56399` 为基线，功能提交为 `6564ee1c`，纳入现有 PR #297。实际完整 ID `doubao-seedream-5-0-lite-260128` 及经实测的 `seedream-5.0` 精确复用尺寸和 2K/3K 控件，保留请求 ID、profile、selectionKey 和短代码。`seedream-5.0` 描述不标为 Lite 或 Pro。未知近似 ID 不继承合同，不新增水印、Pro 字段或新分辨率档位。
 
 本轮 9 文件回归 378 通过、1 个原有 Seedance 2.5 偏好断言失败，没有跳过测试。涵盖两个 ID 的参数组件选值、2K/3K 最终像素请求、原生消费者、偏好保存、已有目录刷新、精确模型身份和相邻模型回归。TypeScript、web 构建、OpenSpec strict 和差异检查通过；修改文件 ESLint 0 errors、7 warnings。日志 `/tmp/opentu-seedream-id-fix-final-tests.log`、`/tmp/opentu-seedream-id-fix-types.log`、`/tmp/opentu-seedream-id-fix-build.log`、`/tmp/opentu-seedream-id-fix-lint.log`。
+
+提交 PR 增量复验仍为 378 通过、1 个相同基线失败；TypeScript、web 构建、lint 和差异检查通过。显式 fetch origin/develop 后仍为 df1715ab，merge 提示已同步，无新增合并或冲突。直接连接停滞后使用命令级本地代理/HTTP 1.1 完成 fetch，没有修改全局 Git 配置。日志 `/tmp/opentu-seedream-pr-update-tests.log`、`/tmp/opentu-seedream-pr-update-types.log`、`/tmp/opentu-seedream-pr-update-build.log`、`/tmp/opentu-seedream-pr-update-lint.log`。修复服务为本仓库 7202；截图所在 localhost:7201 属于另一 checkout，未修改其代码、服务或浏览器数据。
 
 公开 Tuzi `/api/pricing` 将完整 Lite ID 与旧 ID 说明为兼容名称；官方 `https://www.volcengine.com/docs/82379/1541523` 确认 Lite 2K/3K 尺寸。官方当前还列有 4K，本次仅修复既有合同映射，不扩大档位。读取公开目录不是实际生成验证。
 
