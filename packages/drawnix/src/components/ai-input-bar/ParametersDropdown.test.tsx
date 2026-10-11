@@ -11,6 +11,30 @@ vi.mock('../shared/hover', () => ({
 }));
 afterEach(cleanup);
 
+describe('Seedream API parameters', () => {
+  it.each(['doubao-seedream-5-0-lite-260128', 'seedream-5.0'])(
+    'offers size and 2K/3K controls for %s', (modelId) => {
+    const onParamChange = vi.fn();
+    render(
+      <ParametersDropdown
+        isOpen
+        modelId={modelId}
+        selectedParams={{ size: '1x1', seedream_quality: '2k' }}
+        onParamChange={onParamChange}
+      />
+    );
+    expect(screen.getByText('图片尺寸')).toBeTruthy();
+    expect(screen.getByText('图片质量')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '3K' }));
+    expect(onParamChange).toHaveBeenCalledWith('seedream_quality', '3k');
+    fireEvent.click(screen.getByRole('button', { name: '16:9 横版' }));
+    expect(onParamChange).toHaveBeenCalledWith('size', '16x9');
+    expect(screen.queryByText('图片水印')).toBeNull();
+    expect(screen.queryByText('输出格式')).toBeNull();
+    expect(screen.queryByRole('switch', { name: '高级功能' })).toBeNull();
+  });
+});
+
 describe('GPT Image advanced parameters', () => {
   it('shows Veo advanced controls without a channel declaration', () => {
     const onParamChange = vi.fn();

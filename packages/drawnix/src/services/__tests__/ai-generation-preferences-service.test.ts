@@ -174,24 +174,28 @@ describe('ai-generation-preferences-service', () => {
     ).toMatchObject({ sunoAction: 'lyrics' });
   });
 
-  it('按模型作用域恢复图片工具偏好', async () => {
+  it.each([
+    ['doubao-seedream-4-5-251128', '4k'],
+    ['doubao-seedream-5-0-lite-260128', '3k'],
+    ['seedream-5.0', '3k'],
+  ])('按 %s 模型作用域恢复图片工具偏好', async (modelId, quality) => {
     const { loadScopedAIImageToolPreferences, saveAIImageToolPreferences } =
       await import('../ai-generation-preferences-service');
 
     saveAIImageToolPreferences({
-      currentModel: 'doubao-seedream-4-5-251128',
-      currentSelectionKey: 'provider-a::doubao-seedream-4-5-251128',
-      extraParams: { seedream_quality: '4k' },
+      currentModel: modelId,
+      currentSelectionKey: `provider-a::${modelId}`,
+      extraParams: { seedream_quality: quality },
       aspectRatio: '16:9',
     });
 
     expect(
       loadScopedAIImageToolPreferences(
-        'doubao-seedream-4-5-251128',
-        'provider-a::doubao-seedream-4-5-251128'
+        modelId,
+        `provider-a::${modelId}`
       )
     ).toMatchObject({
-      extraParams: { size: '16x9', seedream_quality: '4k' },
+      extraParams: { size: '16x9', seedream_quality: quality },
       aspectRatio: '16:9',
     });
   });

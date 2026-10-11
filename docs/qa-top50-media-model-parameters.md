@@ -1,6 +1,6 @@
 # Top 50 媒体模型参数 QA
 
-验收分支：`dev/complete-top50-media-parameters`；原实现基线：`647e378d`。本记录描述撤回本次新增水印后的实际验证。Image 2 扩展也已撤回。当前仅验证本地代码、模拟请求和组件逻辑。
+验收分支：`dev/complete-top50-media-parameters`；原实现基线：`647e378d`。本记录描述撤回本次新增水印后的本地验证，以及后续 Seedream 名称修复和经用户授权的有限真实请求。Image 2 扩展也已撤回。
 
 ## 范围与环境
 
@@ -11,7 +11,24 @@
 - macOS、Node v26.8.1、pnpm 10.21.0、Vitest 3.2.4，使用已有依赖。
 - Node 26 测试设置 NODE_OPTIONS=--no-experimental-webstorage；NPM_TOKEN=dummy 仅满足本地配置读取，不用于真实认证。
 
-## 当前结果
+## Seedream 名称修复与实测
+
+本地修复以 `96d56399` 为基线，尚未提交或更新 PR #297。实际完整 ID `doubao-seedream-5-0-lite-260128` 及经实测的 `seedream-5.0` 精确复用尺寸和 2K/3K 控件，保留请求 ID、profile、selectionKey 和短代码。`seedream-5.0` 描述不标为 Lite 或 Pro。未知近似 ID 不继承合同，不新增水印、Pro 字段或新分辨率档位。
+
+本轮 9 文件回归 378 通过、1 个原有 Seedance 2.5 偏好断言失败，没有跳过测试。涵盖两个 ID 的参数组件选值、2K/3K 最终像素请求、原生消费者、偏好保存、已有目录刷新、精确模型身份和相邻模型回归。TypeScript、web 构建、OpenSpec strict 和差异检查通过；修改文件 ESLint 0 errors、7 warnings。日志 `/tmp/opentu-seedream-id-fix-final-tests.log`、`/tmp/opentu-seedream-id-fix-types.log`、`/tmp/opentu-seedream-id-fix-build.log`、`/tmp/opentu-seedream-id-fix-lint.log`。
+
+公开 Tuzi `/api/pricing` 将完整 Lite ID 与旧 ID 说明为兼容名称；官方 `https://www.volcengine.com/docs/82379/1541523` 确认 Lite 2K/3K 尺寸。官方当前还列有 4K，本次仅修复既有合同映射，不扩大档位。读取公开目录不是实际生成验证。
+
+`seedream-5.0` 在公开目录中归属于独立即梦渠道，实际是否映射 Lite/Pro 仍未知。用户授权并提供测试凭据后，完成 1 次认证模型目录查询、2 次真实生成请求，无生成重试。凭据只经测试进程标准输入传递，没有保存到文件或日志。生成请求仅包含 model、prompt、response_format=url、size，没有水印、quality、n 或 Pro 专属字段。
+
+| 档位 | 请求 size | HTTP | 返回图片数 | 第一张 PNG 实际尺寸 | 耗时 |
+| --- | --- | --- | --- | --- | --- |
+| 2K | 2560x1440 | 200 | 4 | 2560x1440 | 29 秒 |
+| 3K | 4096x2304 | 200 | 4 | 4096x2304 | 29 秒 |
+
+尺寸通过读取实际图片二进制并使用 image-size 解析取得，不以 HTTP 200 或响应字段代替像素检查。仅核验每次第一张，其余 6 张未核验。响应图片仅在内存中读取，没有将生成结果写入用户画布或素材库。实际账单、其他比例/参考图/其他渠道未验证；这两次请求不能证明上游具体版本。原生浏览器连接失败只影响早期凭据访问，最终改用用户授权凭据直接测试 API，没有完成页面验收。
+
+## PR 297 历史结果
 
 | 检查 | 实际结果 |
 | --- | --- |
@@ -81,8 +98,8 @@ git diff --check
 
 ## 未执行与风险
 
-- 按用户规则没有页面点击、浏览器自动化、截图或真实供应商付费生成；组件测试不能替代页面验收。
-- 未核实生产渠道、计费、供应商字段消费和真实输出格式。Veo 按用户要求直接开放，具体渠道可能忽略或拒绝字段。
+- 未完成页面交互验收、截图或浏览器端到端测试；组件测试不能替代页面验收。经用户授权仅执行了上述 Seedream 两次真实请求。
+- 除上述 Seedream 尺寸验证外，未核实其他渠道/字段消费和真实输出格式，也未核实计费账单。Veo 按用户要求直接开放，具体渠道可能忽略或拒绝字段。
 - 未实施原生 Gemini 视频高级路径、Seedream 条件高级能力、Seedance 任务控制、H3 参考音频和 Veo 后端媒体转换。
 - 没有依赖或数据迁移，无新增环境变量。回滚本功能提交即可，用户素材和历史任务不清理。
 - DOC 写入现有 docs，工作流 CHANGELOG/pending-test 更新；todo 的 Agent/Skill 待办与本任务无关，经检查无需修改。

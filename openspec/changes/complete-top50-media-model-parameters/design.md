@@ -6,6 +6,8 @@
 
 最新约束：撤回本次 Image 2 扩展和所有新增水印。已有 Image 2.5 参数、Seedance 2.5 水印等基线能力保持；Veo 四项高级参数按用户要求直接开放。
 
+后续名称修复：完整 Seedream Lite ID 与 seedream-5.0 复用既有尺寸及 2K/3K 参数合同，原始请求 ID 和 profile 不变。seedream-5.0 经用户授权完成两次真实请求，首张输出分别匹配 2560x1440 / 4096x2304；只据此开放对应控件，不标为 Lite/Pro，不扩展水印或新档位。其余比例/参考图/渠道和真实账单未验证，详见 QA。
+
 - OpenTu：`647e378d`，已包含 `5defc210`（Image 2.5 背景）和 `094fea14`（Image 2.5 高级参数）。
 - 功能分支：`dev/complete-top50-media-parameters`；提交 PR 前显式同步最新 `origin/develop`。
 - Tuzi 契约参考：`/Users/lkj/Desktop/working/tu-zi-api` 的 `6ad30c8db`，只读，不代表线上部署版本。
@@ -143,7 +145,7 @@ Seedream Lite、Seedance 2.0/Fast 和 H3 不保留本次新增水印。Seedream/
 4. 运行受影响测试、TypeScript、构建、OpenSpec strict 和 git diff --check；基线失败单列，不删除或跳过失败断言。
 5. 获得 PR 授权后先提交、显式 fetch/merge origin/develop，再最终验证、更新 QA/DOC、推送并创建 PR；不合并。
 
-默认不执行页面测试、截图、付费请求或部署。测试请求使用 mock transport/fetch，不宣称供应商生效。
+默认不执行页面测试、截图、付费请求或部署。自动化回归使用 mock transport/fetch；后续经用户单独授权的 Seedream 两次真实请求另列于 QA，不将其他模拟验证视为供应商生效。
 
 ## 7. 条件工作包与维护
 

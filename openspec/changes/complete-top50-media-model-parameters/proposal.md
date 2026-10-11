@@ -13,13 +13,14 @@ GPT Image 2.5 背景和高级参数已经存在。榜单中的四个 Gemini 精�
 - 工作流同步消费者、白名单和可选渠道取值限制；视频偏好按 profile/model 保存，快照只保留允许的能力字段。
 - Seedance 2.5 移除 draft/priority，保留原有 watermark/output_format，补齐工作流 output_format 消费。
 - Image 2 扩展及本次所有新增水印取消；已有水印行为保留。
+- 后续名称修复将完整 Seedream Lite ID 和 seedream-5.0 关联到尺寸/2K/3K 元数据，保留请求 ID；seedream-5.0 两次经授权的真实请求已核验首张像素，但不据此判断具体引擎版本。
 - 维护 26-ID 对账、QA/DOC 和受影响回归；真实供应商、浏览器和部署验收另列。
 
 ## Scope And Impact
 
 - Affected specs: runtime-model-discovery、image-generation、provider-routing、ai-input-generation。
 - 当前代码基线：647e378d。Tuzi 参考代码仅为契约研究依据，不证明生产部署或供应商消费。
-- 不新增供应商引擎、静态别名选择器条目、请求 ID 重写、依赖、迁移或收费请求。
+- 不新增供应商引擎、静态别名选择器条目、请求 ID 重写、依赖或迁移。默认不执行收费请求；后续用户已单独授权上述两次 Seedream 实测，没有生成重试。
 - Seedream 条件能力、Seedance 任务控制、H3 音频、原生 Gemini 视频高级路径和 Veo 后端媒体转换不在当前交付。
 
 完整模型清单及原方案取舍见 [design.md](./design.md)，最终实现以 [DOC](../../../docs/top50-media-model-parameters.md) 和 [tasks.md](./tasks.md) 为准。条件工作包不得作为已经实现的能力发布。

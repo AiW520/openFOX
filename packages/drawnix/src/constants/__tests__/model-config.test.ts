@@ -267,6 +267,37 @@ describe('model-config image size options', () => {
     }
   );
 
+  it.each(['doubao-seedream-5-0-lite-260128', 'seedream-5.0'])(
+    'gives %s its size and quality contract without rewriting identity', (id) => {
+    const sourceId = 'doubao-seedream-5-0-260128';
+    expect(getStaticModelConfig(id)).toMatchObject({
+      id,
+      type: 'image',
+      vendor: ModelVendor.DOUBAO,
+      shortCode: 'sd5',
+      tags: ['seedream'],
+    });
+    if (id === 'seedream-5.0') {
+      expect(getStaticModelConfig(id)?.description).not.toMatch(/lite/i);
+    }
+    expect(getCompatibleParams(id)).toEqual(getCompatibleParams(sourceId));
+    expect(getCompatibleParams(id).map(param => param.id)).toEqual(['size', 'seedream_quality']);
+    expect(getCompatibleParams(id).find(param => param.id === 'seedream_quality')?.options?.map(option => option.value))
+      .toEqual(['2k', '3k']);
+    expect(getStaticModelsByType('image').some(model => model.id === id)).toBe(false);
+
+    setRuntimeModelConfigs([{
+      id, label: 'Tuzi Seedream', type: 'image', vendor: ModelVendor.DOUBAO,
+      sourceProfileId: 'tuzi', selectionKey: `tuzi::${id}`,
+    }]);
+    expect(getCompatibleParams(id)).toEqual(getCompatibleParams(sourceId));
+    expect(getModelConfig(id)).toMatchObject({ id, sourceProfileId: 'tuzi', selectionKey: `tuzi::${id}` });
+    for (const unknownId of ['doubao-seedream-5-0-lite-260128-custom', 'doubao-seedream-5-0-lite-260129', 'seedream-5.0-custom', 'seedream-5.0-pro']) {
+      expect(getStaticModelConfig(unknownId)).toBeUndefined();
+      expect(getCompatibleParams(unknownId)).toEqual([]);
+    }
+  });
+
 
   it.each(['gpt-image-2.5', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'])(
     '为 %s 暴露分辨率与最高到 xhigh 的画质选项',

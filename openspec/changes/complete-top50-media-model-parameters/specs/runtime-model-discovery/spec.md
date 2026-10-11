@@ -18,6 +18,24 @@ The system SHALL track the 26 exact model IDs listed in this change without chan
 - **AND** SHALL NOT rewrite its outbound ID to `gemini-3-pro-image-preview`
 - **AND** delivery documentation SHALL distinguish local metadata from unverified supplier support
 
+### Requirement: Exact Seedream API Parameter Contract
+
+The system SHALL associate doubao-seedream-5-0-lite-260128 and the verified seedream-5.0 ID with existing size and 2K/3K quality metadata, while preserving their outbound IDs and selected providers.
+
+#### Scenario: Discovered Lite ID exposes existing controls
+
+- **WHEN** a provider returns doubao-seedream-5-0-lite-260128 or seedream-5.0
+- **THEN** ordinary and native parameter menus SHALL expose the existing size and seedream_quality controls
+- **AND** selected values SHALL reach the existing Seedream size conversion and request consumer
+- **AND** the request model ID SHALL remain the selected original ID
+- **AND** no watermark or Pro-specific parameters SHALL be added
+
+#### Scenario: Verified alias does not imply an engine version
+
+- **WHEN** seedream-5.0 accepts the tested 2K/3K dimensions
+- **THEN** the client SHALL expose the corresponding size and quality controls
+- **AND** SHALL NOT describe that channel alias as a verified Lite or Pro engine
+
 ### Requirement: Preserve Fixed 1K Baseline Contracts
 
 The system SHALL preserve the pre-change absence of a static `gpt-image-2-1k` entry and SHALL preserve the existing fixed contract of `gpt-image-2.5-1k`.

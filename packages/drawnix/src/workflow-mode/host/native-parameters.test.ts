@@ -17,6 +17,23 @@ import {
 } from '../shared/native-parameters';
 
 describe('complete native catalog parameter coverage', () => {
+  it.each(['doubao-seedream-5-0-lite-260128', 'seedream-5.0'])(
+    'enables %s size and quality controls with their final consumer', (modelId) => {
+    const parameters = applyNativeAdapterContract(
+      describeNativeModel(modelId, 'image').parameters!,
+      'image',
+      'seedream-image-adapter'
+    );
+    expect(parameters.find(param => param.id === 'seedream_quality')).toMatchObject({
+      defaultValue: '2k',
+      options: [{ value: '2k', label: '2K' }, { value: '3k', label: '3K' }],
+    });
+    expect(parameters.find(param => param.id === 'seedream_quality')?.disabledReason).toBeUndefined();
+    expect(resolveNativeParameters(parameters, { size: '16x9', seedream_quality: '3k' }))
+      .toMatchObject({ size: '16x9', seedream_quality: '3k' });
+    expect(() => resolveNativeParameters(parameters, { seedream_quality: '1k' })).toThrow();
+    expect(parameters.map(param => param.id)).not.toContain('watermark');
+  });
   it('enables Veo controls without a metadata declaration and preserves channel limits', () => {
     const parameters = describeNativeModel('veo3.1', 'video').parameters!;
     const unknown = applyNativeAdapterContract(parameters, 'video', 'gemini-video-adapter');

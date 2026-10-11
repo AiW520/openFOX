@@ -1664,6 +1664,8 @@ const IMAGE_PARAMETER_MODEL_ALIASES: Readonly<Record<string, string>> = {
   'nano-banana-2': 'gemini-3.1-flash-image-preview',
   'gemini-3.1-flash-image': 'gemini-3.1-flash-image-preview',
   'gemini-3-pro-image': 'gemini-3-pro-image-preview',
+  'doubao-seedream-5-0-lite-260128': 'doubao-seedream-5-0-260128',
+  'seedream-5.0': 'doubao-seedream-5-0-260128',
 };
 
 let runtimeModels: ModelConfig[] = [];
@@ -1718,7 +1720,14 @@ export function getStaticModelConfig(modelId: string): ModelConfig | undefined {
         id: modelId,
         label: modelId,
         shortLabel: modelId,
-        shortCode: undefined,
+        description:
+          modelId === 'seedream-5.0'
+            ? '即梦 Seedream 5.0 图片生成'
+            : sourceModel.description,
+        shortCode:
+          sourceModel.vendor === ModelVendor.DOUBAO
+            ? sourceModel.shortCode
+            : undefined,
       }
     : undefined;
 }

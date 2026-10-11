@@ -11,12 +11,20 @@
 | nano-banana / nano-banana-2 / gemini-3.1-flash-image / gemini-3-pro-image | 精确复用对应 Gemini 参数元数据，保留请求模型 ID 和 profile 身份；未知相似 ID 不匹配 |
 | 其他 Gemini 图片型号 | 保留已有参数，固定 2K/4K 不新增可变档位 |
 | doubao-seedream-5-0-260128 | 撤回本次图片水印；适配器保持基线 |
+| doubao-seedream-5-0-lite-260128（同一 Lite 合同的完整 ID） | 复用旧 Lite 的尺寸及 2K/3K 画质控件；原始请求 ID、profile、selectionKey 保留，不新增水印 |
+| seedream-5.0 | 经有限真实请求验证后接通尺寸与 2K/3K 控件，保留该 ID；不标成 Lite 或 Pro |
 | Seedance 2.0 / Fast | 撤回本次水印扩展，保持基线 |
 | Seedance 2.5 | 移除无可靠官方支持证据的 draft/priority；保留原有 watermark 和 output_format，工作流接通 output_format 消费 |
 | MiniMax-H3 | 撤回本次 aigc_watermark；生成、再生成及 Context IR 保持基线 |
 | veo3.1 | 直接开放四项高级参数，通过两条既有 Tuzi multipart 路径写入 metadata |
 
 26 个精确模型 ID 由 `constants/__tests__/top50-media-parameters.test.ts` 对账。参数元数据复用不新增静态选择器条目，也不改写实际请求 ID。
+
+后续名称修复：Tuzi 公开 `/api/pricing` 将带 lite 的完整 ID 与旧 Lite 名称列为兼容名称；旧代码只给不带 lite 的 ID 定义了画质，所以动态发现的完整 ID 缺少控件。本地修复采用精确元数据映射，刷新已有模型目录即可继承参数，不迁移已选模型。官方图片生成文档 `https://www.volcengine.com/docs/82379/1541523` 确认 Lite 支持 2K/3K（当前还列有 4K）；本次仅接通既有 2K/3K 合同，不增加新档位。
+
+`seedream-5.0` 是公开目录中的独立即梦渠道条目。用户授权后，使用其提供的凭据完成两次 `POST https://api.tu-zi.com/v1/images/generations` 实测：`size=2560x1440` 和 `size=4096x2304` 均返回 HTTP 200，每次返回 4 张图片；读取各响应第一张 PNG 的实际像素，分别与请求尺寸一致。仅据此复用尺寸和 2K/3K 参数元数据，保留原请求 ID，描述不标为 Lite。不新增水印、Pro 字段或分辨率档位。
+
+该验证仅覆盖这次凭据对应的渠道、16:9 两个尺寸、两次文生图请求；未核验其余六张图片、其他比例、参考图、真实账单或其他供应商，也不能证明底层具体版本是 Lite/Pro。密钥只通过测试进程的标准输入传递，未保存到源码、配置或日志。单次返回多图由渠道决定，不能将前端任务数视为供应商返回图片数。
 
 ## Veo 使用与请求
 
