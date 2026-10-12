@@ -18,6 +18,23 @@ afterEach(() => {
 });
 
 describe('media visibility', () => {
+  it('observes the rendered HTML container inside a transformed SVG', () => {
+    const observe = vi.fn();
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(callback: IntersectionObserverCallback) { notify = callback; }
+      observe = observe;
+      disconnect = vi.fn();
+    });
+    render(<svg><g transform="translate(920 500)"><foreignObject x="-920" y="-500" width="400" height="400"><Probe /></foreignObject></g></svg>);
+    const content = screen.getByText('dormant');
+    expect(observe).toHaveBeenCalledWith(content);
+    act(() => notify(
+      [{ target: content, isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver
+    ));
+    expect(screen.getByText('loaded')).toBeTruthy();
+  });
+
   it('loads visible content and releases offscreen media after a delay', () => {
     vi.useFakeTimers();
     vi.stubGlobal(

@@ -22,7 +22,8 @@ export function useMediaVisibility(
       },
       { rootMargin: '200px' }
     );
-    observer.observe(element.closest('foreignObject') || element);
+    // Chromium can misplace foreignObject bounds after the SVG viewport moves.
+    observer.observe(element);
     return () => {
       observer.disconnect();
       if (releaseTimer) clearTimeout(releaseTimer);
