@@ -13,6 +13,14 @@ const tinyPngBase64Only =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 describe('gpt-image-adapter', () => {
+  it('accepts saved compression values and rejects transparent JPEG output', () => {
+    expect(buildGPTImageGenerationBody({ model: 'gpt-image-2', prompt: 'Test',
+      params: { output_format: 'webp', output_compression: '0' },
+    })).toMatchObject({ output_format: 'webp', output_compression: 0 });
+    expect(() => buildGPTImageGenerationBody({ model: 'gpt-image-2', prompt: 'Test',
+      params: { output_format: 'jpeg', background: 'transparent' },
+    })).toThrow('透明背景需要 PNG 或 WebP 输出');
+  });
   it.each(['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'])(
     '%s keeps automatic generation size independent and maps stale edit size',
     async (model) => {
@@ -184,7 +192,7 @@ describe('gpt-image-adapter', () => {
     expect(body.get('input_fidelity')).toBe('high');
     expect(body.get('size')).toBe('1024x1024');
     expect(body.get('output_format')).toBe('png');
-    expect(body.get('output_compression')).toBe('80');
+    expect(body.has('output_compression')).toBe(false);
     expect(body.get('background')).toBe('transparent');
     expect(body.getAll('image[]')).toHaveLength(1);
     expect(body.get('image[]')).toBeInstanceOf(Blob);
@@ -250,7 +258,13 @@ describe('gpt-image-adapter', () => {
     const fetcher = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       const type = url.endsWith('.webp') ? 'image/webp' : 'image/png';
-      return new Response(new Blob(['ok'], { type }), { status: 200 });
+      const response = new Response('ok', {
+        status: 200,
+        headers: { 'Content-Type': type },
+      });
+      // Node Response and jsdom FormData must share the browser Blob fixture.
+      vi.spyOn(response, 'blob').mockResolvedValue(new Blob(['ok'], { type }));
+      return response;
     });
 
     const body = await buildGPTImageEditFormData(

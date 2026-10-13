@@ -9,6 +9,8 @@ import {
   VIDEO_MODEL_CONFIGS,
 } from '../../constants/video-model-config';
 import { getSeedance2Capabilities } from '../../utils/seedance-model';
+import type { ProviderVideoBindingMetadata } from '../../services/provider-routing/types';
+import { getVeoPersonGenerationOptions } from '../../utils/veo-parameters';
 import type { Capability, WorkflowChannel } from '../shared/model-defaults';
 import type {
   NativeParameter,
@@ -21,6 +23,7 @@ export const PARAMETER_CONSUMERS: Record<Capability, Record<string, string>> = {
     size: 'image adapters: request.size',
     resolution: 'image-size-quality-resolver.resolveImageResolutionTier',
     quality: 'image-size-quality-resolver / Gemini image options',
+    thinking: 'Gemini generateContent generationConfig.thinkingConfig',
     seedream_quality: 'seedream-adapter.generateImage',
     mj_ar: 'mj-image-adapter prompt',
     mj_v: 'mj-image-adapter prompt',
@@ -42,11 +45,13 @@ export const PARAMETER_CONSUMERS: Record<Capability, Record<string, string>> = {
     size: 'video adapters: request.size',
     sora_mode: 'video-api-service.appendVideoOutputParams',
     ratio: 'MiniMax/Seedance2/HappyHorse request body',
-    generate_audio: 'Seedance2 submitBody.generate_audio',
+    generate_audio: 'Seedance2 body.generate_audio / Veo metadata.generateAudio',
     api_version: 'video-api-service MiniMax route',
     prompt_enhancement: 'minimax-h3-video-workflow Context IR preflight',
     watermark: 'Seedance2/HappyHorse body.watermark',
-    seed: 'Seedance2/HappyHorse body.seed',
+    output_format: 'Seedance 2.5 body.output_format',
+    seed: 'Seedance2/HappyHorse body.seed / Veo metadata.seed',
+    person_generation: 'Veo metadata.personGeneration',
     camera_fixed: 'Seedance2 body.camera_fixed',
     aspect_ratio: 'seedance-adapter.resolveVideoOptions',
     audio_setting: 'happyhorse-adapter.buildParameters',
@@ -54,7 +59,7 @@ export const PARAMETER_CONSUMERS: Record<Capability, Record<string, string>> = {
     klingAction2: 'kling-adapter action route',
     mode: 'kling-adapter body.mode',
     cfg_scale: 'kling-adapter body.cfg_scale',
-    negative_prompt: 'kling-adapter body.negative_prompt',
+    negative_prompt: 'Kling body.negative_prompt / Veo metadata.negativePrompt',
     camera_control_type: 'kling-adapter.buildCameraControl',
     camera_horizontal: 'kling-adapter.buildCameraControl',
     camera_vertical: 'kling-adapter.buildCameraControl',
@@ -88,6 +93,7 @@ const ADAPTER_PARAMETER_IDS: Record<string, string[]> = {
     'size',
     'quality',
     'resolution',
+    'thinking',
     'n',
     'response_format',
   ],
@@ -109,7 +115,12 @@ const ADAPTER_PARAMETER_IDS: Record<string, string[]> = {
     'quality',
     'resolution',
     'n',
+    'background',
+    'output_format',
+    'output_compression',
     'response_format',
+    'moderation',
+    'user',
   ],
   'seedream-image-adapter': ['size', 'seedream_quality'],
   'flux-image-adapter': ['size'],
@@ -121,6 +132,10 @@ const ADAPTER_PARAMETER_IDS: Record<string, string[]> = {
     'api_version',
     'prompt_enhancement',
     'ratio',
+    'generate_audio',
+    'seed',
+    'person_generation',
+    'negative_prompt',
   ],
   'seedance-video-adapter': ['size', 'duration', 'aspect_ratio'],
   'seedance-2-video-adapter': [
@@ -131,6 +146,7 @@ const ADAPTER_PARAMETER_IDS: Record<string, string[]> = {
     'watermark',
     'seed',
     'camera_fixed',
+    'output_format',
   ],
   'happyhorse-video-adapter': [
     'size',
@@ -200,10 +216,18 @@ export function applyNativeAdapterContract(
   parameters: NativeParameter[],
   capability: Capability,
   adapterId?: string,
-  requestSchema?: string
+  requestSchema?: string,
+  videoMetadata?: ProviderVideoBindingMetadata
 ): NativeParameter[] {
   if (!adapterId) return parameters;
   return parameters.map((parameter) => {
+    if (adapterId === 'gemini-video-adapter' && parameter.id === 'person_generation')
+      return {
+        ...parameter,
+        options: getVeoPersonGenerationOptions(videoMetadata).map((value) => ({ value, label: value })),
+      };
+    if (adapterId === 'gemini-video-adapter' && parameter.id === 'seed' && videoMetadata?.veoAdvancedParameters)
+      return { ...parameter, max: videoMetadata.veoAdvancedParameters.seedMax ?? Number.MAX_SAFE_INTEGER };
     if (
       adapterId === 'gemini-image-adapter' &&
       parameter.id === 'quality' &&
@@ -267,8 +291,12 @@ export function describeNativeModel(
   // Tuzi discovery may return a concrete Kling version while OpenTu's
   // contract is declared on the capability model. Resolve that alias before
   // loading parameters so local channels receive the same dedicated fields.
-  const physicalSeedance = normalizedModelId.match(/^doubao-seedance-(1-5-pro|1-0-pro(?:-fast)?|1-0-lite)_(480p|720p|1080p)$/);
-  const seedanceFamily = physicalSeedance ? `seedance-${physicalSeedance[1].replace(/^1-([05])/, '1.$1')}` : undefined;
+  const physicalSeedance = normalizedModelId.match(
+    /^doubao-seedance-(1-5-pro|1-0-pro(?:-fast)?|1-0-lite)_(480p|720p|1080p)$/
+  );
+  const seedanceFamily = physicalSeedance
+    ? `seedance-${physicalSeedance[1].replace(/^1-([05])/, '1.$1')}`
+    : undefined;
   const contractModelId = /^kling-v\d(?:[-.]\d+)?$/.test(normalizedModelId)
     ? 'kling_video'
     : seedanceFamily || modelId;
@@ -282,15 +310,22 @@ export function describeNativeModel(
     ).values(),
   ];
   if (contractModelId !== modelId) {
-    const version = parameters.find(parameter => parameter.id === 'model_name');
+    const version = parameters.find(
+      (parameter) => parameter.id === 'model_name'
+    );
     if (version) {
       version.options = [{ value: modelId, label: modelId }];
       version.defaultValue = modelId;
     }
   }
   if (physicalSeedance) {
-    const size = parameters.find(parameter => parameter.id === 'size');
-    if (size) { size.options = [{ value: physicalSeedance[2], label: physicalSeedance[2] }]; size.defaultValue = physicalSeedance[2]; }
+    const size = parameters.find((parameter) => parameter.id === 'size');
+    if (size) {
+      size.options = [
+        { value: physicalSeedance[2], label: physicalSeedance[2] },
+      ];
+      size.defaultValue = physicalSeedance[2];
+    }
   }
   const referenceInputs: NativeReferenceInputs = {};
   if (
@@ -349,7 +384,10 @@ export function describeNativeModel(
         maxCount: 9,
         maxCountWithoutVideos: 2,
       };
-      referenceInputs.videos = { maxCount: 3, formats: ['url', 'data', 'asset'] };
+      referenceInputs.videos = {
+        maxCount: 3,
+        formats: ['url', 'data', 'asset'],
+      };
     }
     if (seedance) {
       referenceInputs.images.maxCount = Math.min(
@@ -412,7 +450,10 @@ export function extendAdapterParameters(
     });
     add(enumeration('response_format', '返回格式', ['url', 'b64_json']));
   }
-  if (adapterId === 'gpt-image-adapter') {
+  if (
+    adapterId === 'gpt-image-adapter' ||
+    adapterId === 'tuzi-gpt-image-adapter'
+  ) {
     add(enumeration('background', '背景', ['auto', 'opaque', 'transparent']));
     add(enumeration('output_format', '输出格式', ['png', 'jpeg', 'webp']));
     add({
@@ -424,7 +465,9 @@ export function extendAdapterParameters(
       integer: true,
     });
     add(enumeration('moderation', '内容审核', ['auto', 'low']));
-    add(enumeration('input_fidelity', '输入保真度', ['high', 'low']));
+    if (adapterId === 'gpt-image-adapter') {
+      add(enumeration('input_fidelity', '输入保真度', ['high', 'low']));
+    }
     add({ id: 'user', label: '用户标识', valueType: 'string' });
   }
   if (adapterId === 'suno-audio-adapter') {

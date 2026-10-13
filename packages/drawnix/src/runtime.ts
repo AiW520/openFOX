@@ -12,7 +12,10 @@ export type {
   CrashRecoveryState,
   CrashInfo,
 } from './services/crash-recovery-service';
-export { safeReload } from './utils/active-tasks';
+export async function safeReload(): Promise<boolean> {
+  const { safeReload: reloadWithTaskGuard } = await import('./utils/active-tasks');
+  return reloadWithTaskGuard();
+}
 export { useDocumentTitle } from './hooks/useDocumentTitle';
 export { markTabSyncVersion } from './hooks/useTabSync';
 
@@ -27,7 +30,12 @@ export { memoryMonitorService } from './services/memory-monitor-service';
 export { swChannelClient } from './services/sw-channel/client';
 export { unifiedLogService } from './services/unified-log-service';
 export { MessagePlugin } from './utils/message-plugin';
-export { hasTuziSystemToken } from './services/tuzi-token-auth';
+export { analytics } from './utils/umami-analytics';
+export {
+  hasTuziSystemToken,
+  importLocalTuziCredentials,
+  isLocalTuziSession,
+} from './services/tuzi-token-auth';
 export { isTuziEmbeddedMode } from './services/tuzi-embedded-config';
 export async function syncTuziSessionProvidersOnStartup(): Promise<boolean> {
   const { syncTuziSessionProviders } = await import(

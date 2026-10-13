@@ -31,11 +31,6 @@ export type { SWChannelEventHandlers } from './services/sw-channel/client';
 export * from './services/model-adapters';
 export * from './services/provider-routing';
 export * from './services/tuzi-token-auth';
-export { NewExperienceHome } from './components/new-experience/NewExperienceHome';
-export { NewExperienceSettingsOverlay } from './components/new-experience/NewExperienceSettingsOverlay';
-export { NewExperienceStudio } from './components/new-experience/NewExperienceStudio';
-export type { NewExperienceStudioProps } from './components/new-experience/NewExperienceStudio';
-export { NewCreativeCanvas } from './components/new-experience/NewCreativeCanvas';
 export { useSharedTaskState } from './hooks/useTaskQueue';
 
 // Export initialization services (for main.tsx)

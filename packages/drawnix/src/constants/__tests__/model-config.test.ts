@@ -5,12 +5,97 @@ import {
   getStaticModelsByType,
   getSizeOptionsForModel,
   getStaticModelConfig,
+  getModelConfig,
   ModelVendor,
   setRuntimeModelConfigs,
+  isGPTImage2ModelId,
+  isGPTImage25ModelId,
 } from '../model-config';
 import { getVideoModelConfig } from '../video-model-config';
 
 describe('model-config image size options', () => {
+  it('exposes Suno v6 versions and defaults to balanced v6', () => {
+    const mv = getCompatibleParams('suno_music').find((param) => param.id === 'mv');
+    expect(mv?.defaultValue).toBe('chirp-v6');
+    expect(mv?.options).toEqual([
+      { value: 'chirp-v6', label: 'v6（默认，均衡）' },
+      { value: 'chirp-v6-wild', label: 'v6 Wild（风格更奔放）' },
+      { value: 'chirp-v6-mini', label: 'v6 Mini（更快）' },
+    ]);
+  });
+
+  it('exposes Nano Banana 2.1 supported ratios, tiers and isolated Thinking', () => {
+    expect(getStaticModelConfig('gemini-nano-banana-2.1')).toMatchObject({
+      shortCode: 'nb21', type: 'image', vendor: ModelVendor.GEMINI,
+    });
+    const params = getCompatibleParams('gemini-nano-banana-2.1');
+    expect(params.filter(param => param.id === 'size')).toHaveLength(1);
+    expect(getSizeOptionsForModel('gemini-nano-banana-2.1').map(option => option.value)).toEqual([
+      'auto', '1x1', '1x4', '4x1', '1x8', '8x1', '16x9', '9x16',
+      '3x2', '2x3', '4x3', '3x4', '5x4', '4x5', '21x9',
+    ]);
+    expect(params.find(param => param.id === 'quality')?.options?.map(option => option.value))
+      .toEqual(['1k', '2k', '4k']);
+    expect(params.find(param => param.id === 'thinking')).toMatchObject({
+      defaultValue: 'medium',
+      options: [
+        { value: 'minimal', label: '最小' },
+        { value: 'medium', label: '标准' },
+        { value: 'high', label: '高' },
+      ],
+    });
+    for (const id of ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image-preview', 'gpt-image-2']) {
+      expect(getCompatibleParams(id).some(param => param.id === 'thinking')).toBe(false);
+    }
+  });
+  it.each([
+    'gpt-image-2.5-1k',
+    'gpt-image-2.5', 'gpt-image-2.5-vip',
+    'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare',
+  ])('%s exposes background controls', (modelId) => {
+    expect(getCompatibleParams(modelId).filter((param) => param.id === 'background'))
+      .toEqual([expect.objectContaining({
+        defaultValue: 'auto',
+        options: [
+          { value: 'auto', label: '自动' },
+          { value: 'transparent', label: '透明' },
+          { value: 'opaque', label: '不透明' },
+        ],
+      })]);
+  });
+
+  it.each(['gpt-image-2', 'gpt-image-2-vip', 'gpt-image2', 'gpt-image2-vip',
+    'gpt-image-2-1k', 'gpt-image-2-pro', 'gpt-image-2-preview', 'image-2', 'image2'])(
+    '%s exposes only supported background values', (modelId) => {
+      setRuntimeModelConfigs([{ id: modelId, label: modelId, type: 'image', vendor: ModelVendor.GPT }]);
+      const backgrounds = getCompatibleParams(modelId).filter((param) => param.id === 'background');
+      expect(backgrounds).toHaveLength(1);
+      expect(backgrounds[0].options?.map((option) => option.value)).toEqual(['auto', 'opaque']);
+    }
+  );
+
+  it.each(['gpt-image-2-pro', 'gpt-image2-fast', 'gpt-image-2-preview'])(
+    '%s treats Image 2 variants as opaque-only', (modelId) => {
+      expect(isGPTImage2ModelId(modelId)).toBe(true);
+      expect(isGPTImage25ModelId(modelId)).toBe(false);
+    }
+  );
+
+  it.each(['gpt-image-2.5-custom', 'image-2.5-vip'])(
+    '%s keeps transparent controls separate from Image 2', (modelId) => {
+      setRuntimeModelConfigs([{ id: modelId, label: modelId, type: 'image', vendor: ModelVendor.GPT }]);
+      expect(isGPTImage2ModelId(modelId)).toBe(false);
+      expect(getCompatibleParams(modelId).find((param) => param.id === 'background')?.options)
+        .toContainEqual({ value: 'transparent', label: '透明' });
+    }
+  );
+
+  it.each(['gemini-3.1-flash-image-preview', 'doubao-seedream-4-5-251128', 'mj-imagine'])(
+    '%s does not expose GPT background controls', (modelId) => {
+      expect(getCompatibleParams(modelId).some((param) => param.id === 'background')).toBe(false);
+    }
+  );
+
   afterEach(() => {
     clearRuntimeModelConfigs();
   });
@@ -87,6 +172,143 @@ describe('model-config image size options', () => {
     ]);
   });
 
+  it.each([
+    'gpt-image-2.5-1k',
+    'gpt-image-2.5',
+    'gpt-image-2.5-vip',
+    'gpt-image-2.5-sunburst',
+    'gpt-image-2.5-flare',
+  ])('为 %s 暴露可选的高级输出参数', (modelId) => {
+    const advancedParams = getCompatibleParams(modelId).filter(
+      (param) => param.advanced
+    );
+
+    expect(advancedParams.map((param) => param.id)).toEqual([
+      'output_format',
+      'output_compression',
+      'moderation',
+      'user',
+    ]);
+    expect(
+      advancedParams.every((param) => param.defaultValue === undefined)
+    ).toBe(true);
+    expect(
+      advancedParams.find((param) => param.id === 'output_format')?.options
+    ).toEqual([
+        { value: 'png', label: 'PNG' },
+        { value: 'jpeg', label: 'JPEG' },
+        { value: 'webp', label: 'WebP' },
+    ]);
+    expect(
+      advancedParams.find((param) => param.id === 'output_compression')
+    ).toMatchObject({ valueType: 'number', min: 0, max: 100, integer: true });
+    expect(
+      advancedParams.find((param) => param.id === 'moderation')?.options
+        ?.map((option) => option.value)
+    ).toEqual(['auto', 'low']);
+    expect(
+      advancedParams.find((param) => param.id === 'user')?.valueType
+    ).toBe('string');
+  });
+
+  it.each([
+    'gpt-image-2',
+    'gpt-image-2-vip',
+    'gemini-3.1-flash-image-preview',
+    'doubao-seedream-5-0-260128',
+    'mj-imagine',
+  ])('不向 %s 暴露 GPT 高级输出参数', (modelId) => {
+    const paramIds = getCompatibleParams(modelId).map((param) => param.id);
+    for (const paramId of [
+      'output_format', 'output_compression', 'moderation', 'user',
+    ]) {
+      expect(paramIds).not.toContain(paramId);
+    }
+  });
+
+  it.each([
+    ['nano-banana', 'gemini-2.5-flash-image'],
+    ['nano-banana-2', 'gemini-3.1-flash-image-preview'],
+    ['gemini-3.1-flash-image', 'gemini-3.1-flash-image-preview'],
+    ['gemini-3-pro-image', 'gemini-3-pro-image-preview'],
+  ])('为精确别名 %s 复用 %s 参数并保留模型 ID', (modelId, sourceModelId) => {
+    const sourceParams = getCompatibleParams(sourceModelId);
+    const params = getCompatibleParams(modelId);
+
+    expect(getModelConfig(modelId)).toMatchObject({
+      id: modelId,
+      label: modelId,
+      type: 'image',
+      vendor: ModelVendor.GEMINI,
+    });
+    expect(params).toEqual(sourceParams);
+    expect(getSizeOptionsForModel(modelId)).toEqual(
+      getSizeOptionsForModel(sourceModelId)
+    );
+    expect(
+      getStaticModelsByType('image').some((model) => model.id === modelId)
+    ).toBe(false);
+
+    setRuntimeModelConfigs([
+      {
+        id: modelId,
+        label: 'Provider alias',
+        type: 'image',
+        vendor: ModelVendor.OTHER,
+        sourceProfileId: 'provider',
+        selectionKey: `provider::${modelId}`,
+      },
+    ]);
+    expect(getCompatibleParams(modelId)).toEqual(sourceParams);
+    expect(getModelConfig(modelId)).toMatchObject({
+      id: modelId,
+      sourceProfileId: 'provider',
+      selectionKey: `provider::${modelId}`,
+    });
+  });
+
+  it.each([
+    'nano-banana-20', 'nano-banana-2-custom', 'gemini-3.1-flash-image-custom',
+  ])(
+    '不将未知近似名称 %s 当作已确认别名',
+    (modelId) => {
+      expect(getStaticModelConfig(modelId)).toBeUndefined();
+      expect(getCompatibleParams(modelId)).toEqual([]);
+    }
+  );
+
+  it.each(['doubao-seedream-5-0-lite-260128', 'seedream-5.0'])(
+    'gives %s its size and quality contract without rewriting identity', (id) => {
+    const sourceId = 'doubao-seedream-5-0-260128';
+    expect(getStaticModelConfig(id)).toMatchObject({
+      id,
+      type: 'image',
+      vendor: ModelVendor.DOUBAO,
+      shortCode: 'sd5',
+      tags: ['seedream'],
+    });
+    if (id === 'seedream-5.0') {
+      expect(getStaticModelConfig(id)?.description).not.toMatch(/lite/i);
+    }
+    expect(getCompatibleParams(id)).toEqual(getCompatibleParams(sourceId));
+    expect(getCompatibleParams(id).map(param => param.id)).toEqual(['size', 'seedream_quality']);
+    expect(getCompatibleParams(id).find(param => param.id === 'seedream_quality')?.options?.map(option => option.value))
+      .toEqual(['2k', '3k']);
+    expect(getStaticModelsByType('image').some(model => model.id === id)).toBe(false);
+
+    setRuntimeModelConfigs([{
+      id, label: 'Tuzi Seedream', type: 'image', vendor: ModelVendor.DOUBAO,
+      sourceProfileId: 'tuzi', selectionKey: `tuzi::${id}`,
+    }]);
+    expect(getCompatibleParams(id)).toEqual(getCompatibleParams(sourceId));
+    expect(getModelConfig(id)).toMatchObject({ id, sourceProfileId: 'tuzi', selectionKey: `tuzi::${id}` });
+    for (const unknownId of ['doubao-seedream-5-0-lite-260128-custom', 'doubao-seedream-5-0-lite-260129', 'seedream-5.0-custom', 'seedream-5.0-pro']) {
+      expect(getStaticModelConfig(unknownId)).toBeUndefined();
+      expect(getCompatibleParams(unknownId)).toEqual([]);
+    }
+  });
+
+
   it.each(['gpt-image-2.5', 'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'])(
     '为 %s 暴露分辨率与最高到 xhigh 的画质选项',
     (modelId) => {
@@ -97,7 +319,9 @@ describe('model-config image size options', () => {
           .find((param) => param.id === 'resolution')
           ?.options?.map((option) => option.value)
       ).toEqual(['auto', '1k', '2k', '4k']);
-      expect(params.find((param) => param.id === 'resolution')?.options).toEqual([
+      expect(
+        params.find((param) => param.id === 'resolution')?.options
+      ).toEqual([
         { value: 'auto', label: '自动' },
         { value: '1k', label: '1K' },
         { value: '2k', label: '2K' },
@@ -114,14 +338,14 @@ describe('model-config image size options', () => {
   it('为 GPT Image 2.5 VIP 提供分辨率与超高清画质档位', () => {
     const params = getCompatibleParams('gpt-image-2.5-vip');
     expect(
-      params.find((param) => param.id === 'resolution')?.options?.map(
-        (option) => option.value
-      )
+      params
+        .find((param) => param.id === 'resolution')
+        ?.options?.map((option) => option.value)
     ).toEqual(['auto', '1k', '2k', '4k']);
     expect(
-      params.find((param) => param.id === 'quality')?.options?.map(
-        (option) => option.value
-      )
+      params
+        .find((param) => param.id === 'quality')
+        ?.options?.map((option) => option.value)
     ).toEqual(['auto', 'low', 'medium', 'high', 'xhigh']);
   });
 
@@ -370,7 +594,16 @@ describe('model-config image size options', () => {
     'doubao-seedance-2-0-mini-260615',
   ])('Seedance 2.0 参数与官方 JSON 契约一致：%s', (modelId) => {
     const params = getCompatibleParams(modelId);
-    expect(params.map((param) => param.id)).not.toContain('watermark');
+    expect(params.map((param) => param.id)).toEqual(
+      expect.arrayContaining([
+        'duration',
+        'size',
+        'ratio',
+        'generate_audio',
+        'seed',
+        'camera_fixed',
+      ])
+    );
     const options = (paramId: string) =>
       params
         .find((param) => param.id === paramId)
@@ -404,7 +637,9 @@ describe('model-config image size options', () => {
 
   it('Seedance 2.5 exposes its own duration and ratio boundaries', () => {
     const params = getCompatibleParams('doubao-seedance-2-5-260628');
-    expect(params.map((param) => param.id)).not.toContain('watermark');
+    expect(params.map((param) => param.id)).toEqual(
+      expect.arrayContaining(['watermark', 'output_format'])
+    );
     const options = (paramId: string) =>
       params
         .find((param) => param.id === paramId)
@@ -422,7 +657,13 @@ describe('model-config image size options', () => {
       '21:9',
       'adaptive',
     ]);
-    expect(options('size')).toBeUndefined();
+    expect(options('size')).toEqual(['1080p', '720p', '480p']);
+    expect(params.find((param) => param.id === 'size')?.defaultValue).toBe(
+      '480p'
+    );
+    expect(params.find((param) => param.id === 'duration')?.defaultValue).toBe(
+      '4'
+    );
     expect(params.map((param) => param.id)).not.toEqual(
       expect.arrayContaining(['seed', 'camera_fixed'])
     );
@@ -522,9 +763,7 @@ describe('model-config image size options', () => {
       },
     ]);
 
-    const paramIds = getCompatibleParams('minimax-h3').map(
-      (param) => param.id
-    );
+    const paramIds = getCompatibleParams('minimax-h3').map((param) => param.id);
 
     expect(paramIds).toEqual(
       expect.arrayContaining([

@@ -1,10 +1,22 @@
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useMemo,
+} from 'react';
 
 // Define supported languages
 export type Language = 'zh' | 'en';
 
 // Define translation keys and their corresponding values
 export interface Translations {
+  'resources.title': string;
+  'resources.close': string;
+  'resources.download': string;
+  'resources.downloadDescription': string;
+  'resources.follow': string;
+  'resources.followDescription': string;
   // Toolbar items
   'toolbar.hand': string;
   'toolbar.selection': string;
@@ -50,7 +62,7 @@ export interface Translations {
   'zoom.fitFrame': string;
   'zoom.fitPPTGlobal': string;
   'zoom.100': string;
-  
+
   // Themes
   'theme.default': string;
   'theme.colorful': string;
@@ -58,19 +70,19 @@ export interface Translations {
   'theme.retro': string;
   'theme.dark': string;
   'theme.starry': string;
-  
+
   // General
   'general.undo': string;
   'general.redo': string;
   'general.menu': string;
   'general.duplicate': string;
   'general.delete': string;
-  
+
   // Language
   'language.switcher': string;
   'language.chinese': string;
   'language.english': string;
-  
+
   // Menu items
   'menu.open': string;
   'menu.saveFile': string;
@@ -82,6 +94,7 @@ export interface Translations {
   'menu.settings': string;
   'menu.backupRestore': string;
   'menu.cloudSync': string;
+  'menu.workflowMode': string;
   'menu.debugPanel': string;
   'menu.version': string;
   'menu.more': string;
@@ -93,7 +106,7 @@ export interface Translations {
   'menu.cleanInvalidLinks.success': string;
   'menu.cleanInvalidLinks.noInvalid': string;
   'menu.cleanInvalidLinks.error': string;
-  
+
   // Dialog translations
   'dialog.mermaid.title': string;
   'dialog.mermaid.description': string;
@@ -111,7 +124,7 @@ export interface Translations {
   'dialog.markdown.preview': string;
   'dialog.markdown.insert': string;
   'dialog.error.loadMermaid': string;
-  
+
   // Extra tools menu items
   'extraTools.mermaidToDrawnix': string;
   'extraTools.markdownToDrawnix': string;
@@ -198,6 +211,12 @@ export interface Translations {
 // Translation data
 const translations: Record<Language, Translations> = {
   zh: {
+    'resources.title': 'OpenTu 资源',
+    'resources.close': '关闭 OpenTu 资源',
+    'resources.download': '下载桌面版',
+    'resources.downloadDescription': 'macOS、Windows、Linux 安装包',
+    'resources.follow': '关注 @shuidiyuAI',
+    'resources.followDescription': '查看 OpenTu 更新和发布动态',
     // Toolbar items
     'toolbar.hand': '手形工具 — H',
     'toolbar.selection': '选择 — V',
@@ -243,7 +262,7 @@ const translations: Record<Language, Translations> = {
     'zoom.fitFrame': '自适应 PPT 页面',
     'zoom.fitPPTGlobal': 'PPT全局',
     'zoom.100': '缩放至 100%',
-    
+
     // Themes
     'theme.default': '默认',
     'theme.colorful': '缤纷',
@@ -251,19 +270,19 @@ const translations: Record<Language, Translations> = {
     'theme.retro': '复古',
     'theme.dark': '暗夜',
     'theme.starry': '星空',
-    
+
     // General
     'general.undo': '撤销',
     'general.redo': '重做',
     'general.menu': '应用菜单',
     'general.duplicate': '复制',
     'general.delete': '删除',
-    
+
     // Language
     'language.switcher': '语言',
     'language.chinese': '中文',
     'language.english': 'English',
-    
+
     // Menu items
     'menu.open': '打开',
     'menu.saveFile': '保存文件',
@@ -275,6 +294,7 @@ const translations: Record<Language, Translations> = {
     'menu.settings': '设置',
     'menu.backupRestore': '备份 / 恢复',
     'menu.cloudSync': '云端同步',
+    'menu.workflowMode': '工作流模式',
     'menu.debugPanel': '日志 / 调试',
     'menu.version': '版本',
     'menu.more': '更多',
@@ -286,7 +306,7 @@ const translations: Record<Language, Translations> = {
     'menu.cleanInvalidLinks.success': '已清除 {count} 个失效媒体',
     'menu.cleanInvalidLinks.noInvalid': '未发现失效媒体',
     'menu.cleanInvalidLinks.error': '清除失败',
-    
+
     // Dialog translations
     'dialog.mermaid.title': 'Mermaid 转 Drawnix',
     'dialog.mermaid.description': '目前仅支持',
@@ -304,7 +324,7 @@ const translations: Record<Language, Translations> = {
     'dialog.markdown.preview': '预览',
     'dialog.markdown.insert': '插入',
     'dialog.error.loadMermaid': '加载 Mermaid 库失败',
-    
+
     // Extra tools menu items
     'extraTools.mermaidToDrawnix': 'Mermaid 到 Drawnix',
     'extraTools.markdownToDrawnix': 'Markdown 到 Drawnix',
@@ -388,6 +408,12 @@ const translations: Record<Language, Translations> = {
     'toolbar.resumeSpeech': '继续朗读',
   },
   en: {
+    'resources.title': 'OpenTu Resources',
+    'resources.close': 'Close OpenTu Resources',
+    'resources.download': 'Download Desktop App',
+    'resources.downloadDescription': 'Installers for macOS, Windows and Linux',
+    'resources.follow': 'Follow @shuidiyuAI',
+    'resources.followDescription': 'OpenTu updates and release news',
     // Toolbar items
     'toolbar.hand': 'Hand — H',
     'toolbar.selection': 'Selection — V',
@@ -433,7 +459,7 @@ const translations: Record<Language, Translations> = {
     'zoom.fitFrame': 'Fit PPT Page',
     'zoom.fitPPTGlobal': 'Fit All PPT Pages',
     'zoom.100': 'Zoom to 100%',
-    
+
     // Themes
     'theme.default': 'Default',
     'theme.colorful': 'Colorful',
@@ -441,19 +467,19 @@ const translations: Record<Language, Translations> = {
     'theme.retro': 'Retro',
     'theme.dark': 'Dark',
     'theme.starry': 'Starry',
-    
+
     // General
     'general.undo': 'Undo',
     'general.redo': 'Redo',
     'general.menu': 'App Menu',
     'general.duplicate': 'Duplicate',
     'general.delete': 'Delete',
-    
+
     // Language
     'language.switcher': 'Language',
     'language.chinese': '中文',
     'language.english': 'English',
-    
+
     // Menu items
     'menu.open': 'Open',
     'menu.saveFile': 'Save File',
@@ -465,6 +491,7 @@ const translations: Record<Language, Translations> = {
     'menu.settings': 'Settings',
     'menu.backupRestore': 'Backup / Restore',
     'menu.cloudSync': 'Cloud Sync',
+    'menu.workflowMode': 'Workflow Mode',
     'menu.debugPanel': 'Log / Debug',
     'menu.version': 'Version',
     'menu.more': 'More',
@@ -476,32 +503,36 @@ const translations: Record<Language, Translations> = {
     'menu.cleanInvalidLinks.success': 'Cleaned {count} invalid media',
     'menu.cleanInvalidLinks.noInvalid': 'No invalid media found',
     'menu.cleanInvalidLinks.error': 'Clean failed',
-    
+
     // Dialog translations
     'dialog.mermaid.title': 'Mermaid to Drawnix',
     'dialog.mermaid.description': 'Currently supports',
     'dialog.mermaid.flowchart': 'flowcharts',
-    'dialog.mermaid.sequence': 'sequence diagrams', 
+    'dialog.mermaid.sequence': 'sequence diagrams',
     'dialog.mermaid.class': 'class diagrams',
-    'dialog.mermaid.otherTypes': ', and other diagram types (rendered as images).',
+    'dialog.mermaid.otherTypes':
+      ', and other diagram types (rendered as images).',
     'dialog.mermaid.syntax': 'Mermaid Syntax',
     'dialog.mermaid.placeholder': 'Write your Mermaid chart definition here...',
     'dialog.mermaid.preview': 'Preview',
     'dialog.mermaid.insert': 'Insert',
-    'dialog.markdown.description': 'Supports automatic conversion of Markdown syntax to mind map.',
+    'dialog.markdown.description':
+      'Supports automatic conversion of Markdown syntax to mind map.',
     'dialog.markdown.syntax': 'Markdown Syntax',
-    'dialog.markdown.placeholder': 'Write your Markdown text definition here...',
+    'dialog.markdown.placeholder':
+      'Write your Markdown text definition here...',
     'dialog.markdown.preview': 'Preview',
     'dialog.markdown.insert': 'Insert',
     'dialog.error.loadMermaid': 'Failed to load Mermaid library',
-    
+
     // Extra tools menu items
     'extraTools.mermaidToDrawnix': 'Mermaid to Drawnix',
     'extraTools.markdownToDrawnix': 'Markdown to Drawnix',
 
     // Clean confirm dialog
     'cleanConfirm.title': 'Clear Board',
-    'cleanConfirm.description': 'This will clear the entire board. Do you want to continue?',
+    'cleanConfirm.description':
+      'This will clear the entire board. Do you want to continue?',
     'cleanConfirm.cancel': 'Cancel',
     'cleanConfirm.ok': 'OK',
 
@@ -599,9 +630,9 @@ interface I18nProviderProps {
 let globalLanguage: Language = 'zh';
 
 // I18nProvider component
-export const I18nProvider: React.FC<I18nProviderProps> = ({ 
-  children, 
-  defaultLanguage = 'zh' 
+export const I18nProvider: React.FC<I18nProviderProps> = ({
+  children,
+  defaultLanguage = 'zh',
 }) => {
   const [language, setLanguageState] = useState<Language>(defaultLanguage);
 
@@ -620,27 +651,26 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({
     return translations[language][key] || key;
   };
 
-  const value: I18nContextType = useMemo(() => ({
-    language,
-    setLanguage,
-    t,
-  }), [language]);
-
-  return (
-    <I18nContext.Provider value={value}>
-      {children}
-    </I18nContext.Provider>
+  const value: I18nContextType = useMemo(
+    () => ({
+      language,
+      setLanguage,
+      t,
+    }),
+    [language]
   );
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 };
 
 // useI18n hook
 export const useI18n = (): I18nContextType => {
   const context = useContext(I18nContext);
-  
+
   if (!context) {
     throw new Error('useI18n must be used within I18nProvider');
   }
-  
+
   return context;
 };
 

@@ -9,14 +9,14 @@ const storage = () => {
 };
 
 describe('experience return navigation', () => {
-  it('opens home on first switch, then restores the exact canvas through repeated switches and a reload', () => {
+  it('opens canvas on first switch, then restores the exact canvas through repeated switches and a reload', () => {
     const saved = storage();
     let switchTo = createExperienceNavigation(saved);
     expect(switchTo(url('/?board=a&experience=legacy'), 'new', 'legacy').pathname).toBe('/');
     const canvas = url('/workflow/canvas/project-two?board=a&experience=new&view=canvas');
     let legacy = switchTo(canvas, 'legacy', 'new');
     expect(legacy.pathname).toBe('/');
-    expect(legacy.searchParams.has('view')).toBe(false);
+    expect(legacy.searchParams.get('view')).toBe('canvas');
     switchTo = createExperienceNavigation(saved);
     for (let i = 0; i < 3; i++) {
       const restored = switchTo(legacy, 'new', 'legacy');
@@ -27,14 +27,14 @@ describe('experience return navigation', () => {
     }
   });
 
-  it('preserves an intentional return home and does not mix boards', () => {
+  it('keeps the canvas return location across home visits and does not mix boards', () => {
     const switchTo = createExperienceNavigation(storage());
     switchTo(url('/workflow/canvas/p?board=a'), 'legacy', 'new');
     expect(switchTo(url('/?board=b'), 'new', 'legacy').pathname).toBe('/');
     switchTo(url('/?board=a&experience=new'), 'legacy', 'new');
     const restored = switchTo(url('/?board=a'), 'new', 'legacy');
-    expect(restored.pathname).toBe('/');
-    expect(restored.searchParams.has('view')).toBe(false);
+    expect(restored.pathname).toBe('/workflow/canvas/p');
+    expect(restored.searchParams.get('view')).toBe('canvas');
   });
 
   it('keeps navigation working when storage is blocked and ignores invalid stored destinations', () => {
@@ -42,7 +42,7 @@ describe('experience return navigation', () => {
     const legacy = switchTo(url('/workflow/canvas/p?board=a'), 'legacy', 'new');
     expect(switchTo(legacy, 'new', 'legacy').pathname).toBe('/workflow/canvas/p');
     const invalid = createExperienceNavigation({ getItem: () => '//evil.example/path', setItem() {} });
-    expect(invalid(url('/?board=a'), 'new', 'legacy').href).toBe(`${origin}/?board=a&experience=new`);
+    expect(invalid(url('/?board=a'), 'new', 'legacy').href).toBe(`${origin}/?board=a&experience=new&view=canvas`);
   });
 
   it('preserves view=canvas before project routing and leaves same-version clicks in place', () => {

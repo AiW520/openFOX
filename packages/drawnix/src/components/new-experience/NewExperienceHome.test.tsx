@@ -84,6 +84,17 @@ afterEach(() => {
 });
 
 describe('new home model and count handoff', () => {
+  it('hands the same model and parameters to the free canvas consumer', () => {
+    const openCanvas = vi.fn();
+    const selectCanvas = vi.fn();
+    render(<NewExperienceHome canvasType="legacy" onSelectCanvas={selectCanvas} onOpenCanvas={openCanvas} onOpenSettings={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: '创作描述' }), { target: { value: '自由画布草稿' } });
+    fireEvent.click(screen.getByRole('button', { name: '打开画布', exact: true }));
+    expect(requestAIInputPrefill).toHaveBeenCalledWith(expect.objectContaining({ target: undefined, prompt: '自由画布草稿', model: 'test-image', params: { size: 'auto', resolution: '2k', quality: 'high' }, count: 1 }));
+    expect(openCanvas).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: '工作流画布', exact: true }));
+    expect(selectCanvas).toHaveBeenCalledWith('new');
+  });
   it('keeps the mobile prompt editable on Enter and hands parameters over on button tap', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const openCanvas = vi.fn();
@@ -109,7 +120,7 @@ describe('new home model and count handoff', () => {
       target: { value: '产品摄影' },
     });
     fireEvent.click(
-      screen.getByRole('button', { name: '带入描述并进入新版画布' })
+      screen.getByRole('button', { name: '带入描述并进入画布' })
     );
     expect(requestAIInputPrefill).toHaveBeenCalledWith(
       expect.objectContaining({

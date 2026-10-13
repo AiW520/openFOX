@@ -17,7 +17,9 @@ import { useThemeStore } from "@/stores/use-theme-store";
 import { nanoid } from "nanoid";
 import { formatBytes, formatDuration } from "@/lib/image-utils";
 import { requestEdit, requestGeneration } from "@/services/api/image";
-import { deleteStoredImages, ensureImagePreview, getImagePreviewRevision, previewUrlFor, resolveImageUrl, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
+import { deleteStoredImages, ensureImagePreview, getImageBlob, getImagePreviewRevision, resolveImageUrl, subscribeImagePreviews, uploadImage } from "@/services/image-storage";
+import { StoredImageThumbnail } from '@/components/stored-media-thumbnail';
+import { useStoredImage, useStoredMedia } from '@/hooks/use-stored-media';
 import { useAssetStore } from "@/stores/use-asset-store";
 import { useWorkbenchAgentStore } from "@/stores/use-workbench-agent-store";
 import type { ReferenceImage } from "@/types/image";
@@ -90,6 +92,8 @@ export default function ImagePage() {
     const addAsset = useAssetStore((state) => state.addAsset);
     const [prompt, setPrompt] = useState("");
     const [references, setReferences] = useState<ReferenceImage[]>([]);
+    const [referenceImports, setReferenceImports] = useState(0);
+    const referenceImportsRef = useRef(0);
     const [results, setResults] = useState<GenerationResult[]>([]);
     const [logs, setLogs] = useState<GenerationLog[]>([]);
     const [running, setRunning] = useState(false);
@@ -113,7 +117,7 @@ export default function ImagePage() {
     const progressWriteRef = useRef(Promise.resolve());
 
     const model = effectiveConfig.imageModel || effectiveConfig.model;
-    const canGenerate = Boolean(prompt.trim());
+    const canGenerate = Boolean(prompt.trim()) && referenceImports === 0;
     const selectedConfig = { ...effectiveConfig, model };
 
     useEffect(() => {
@@ -126,39 +130,53 @@ export default function ImagePage() {
         void refreshLogs();
     }, []);
 
+    const importReferences = async (load: () => Promise<ReferenceImage[]>) => {
+        referenceImportsRef.current += 1;
+        setReferenceImports(referenceImportsRef.current);
+        try {
+            const nextReferences = await load();
+            setReferences((value) => [...value, ...nextReferences]);
+            return nextReferences;
+        } finally {
+            referenceImportsRef.current -= 1;
+            setReferenceImports(referenceImportsRef.current);
+        }
+    };
+
     const addReferences = async (files?: FileList | null) => {
         const imageFiles = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
-        const nextReferences = await Promise.all(
+        await importReferences(() => Promise.all(
             imageFiles.map(async (file) => {
                 const image = await uploadImage(file);
                 return { id: nanoid(), name: file.name, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
             }),
-        );
-        setReferences((value) => [...value, ...nextReferences]);
+        ));
     };
 
     const addReferencesFromClipboard = async () => {
         try {
-            const items = await navigator.clipboard.read();
-            const blobs = await Promise.all(items.flatMap((item) => item.types.filter((type) => type.startsWith("image/")).map((type) => item.getType(type))));
-            if (!blobs.length) {
-                message.error(t("imageWorkbench.clipboardEmpty"));
-                return;
-            }
-            const nextReferences = await Promise.all(
-                blobs.map(async (blob, index) => {
-                    const image = await uploadImage(blob);
-                    return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
-                }),
-            );
-            setReferences((value) => [...value, ...nextReferences]);
-            message.success(t("imageWorkbench.clipboardAdded", { count: nextReferences.length }));
+            const nextReferences = await importReferences(async () => {
+                const items = await navigator.clipboard.read();
+                const blobs = await Promise.all(items.flatMap((item) => item.types.filter((type) => type.startsWith("image/")).map((type) => item.getType(type))));
+                if (!blobs.length) {
+                    message.error(t("imageWorkbench.clipboardEmpty"));
+                    return [];
+                }
+                return Promise.all(
+                    blobs.map(async (blob, index) => {
+                        const image = await uploadImage(blob);
+                        return { id: nanoid(), name: `clipboard-${index + 1}.png`, type: image.mimeType, dataUrl: image.url, storageKey: image.storageKey };
+                    }),
+                );
+            });
+            if (nextReferences.length) message.success(t("imageWorkbench.clipboardAdded", { count: nextReferences.length }));
         } catch {
             message.error(t("imageWorkbench.clipboardEmpty"));
         }
     };
 
     const generate = async () => {
+        if (running || referenceImportsRef.current > 0) return;
         const agentTaskId = agentTaskIdRef.current;
         agentTaskIdRef.current = undefined;
         const text = prompt.trim();
@@ -264,7 +282,7 @@ export default function ImagePage() {
         processedCommandRef.current = imageCommand.nonce;
         clearImageCommand();
         if (typeof imageCommand.prompt === "string") setPrompt(imageCommand.prompt);
-        if (imageCommand.run && running) {
+        if (imageCommand.run && (running || referenceImportsRef.current > 0)) {
             if (imageCommand.taskId) updateAgentTask(imageCommand.taskId, { status: "failed", error: t("imageWorkbench.busy") });
             return;
         }
@@ -280,15 +298,18 @@ export default function ImagePage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoRunToken]);
 
-    const downloadImage = (image: GeneratedImage, index: number) => {
-        saveAs(image.dataUrl, `image-${index + 1}.png`);
+    const downloadImage = async (image: GeneratedImage, index: number) => {
+        const original = image.storageKey ? await getImageBlob(image.storageKey).catch(() => null) : null;
+        saveAs(original || image.dataUrl, `image-${index + 1}.png`);
     };
 
     const addResultToReferences = async (image: GeneratedImage, index: number) => {
         try {
-            const url = await resolveImageUrl(image.storageKey, image.dataUrl);
-            const stored = await uploadImage(url);
-            setReferences((value) => [...value, { id: nanoid(), name: `result-${index + 1}.png`, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }]);
+            await importReferences(async () => {
+                const url = await resolveImageUrl(image.storageKey, image.dataUrl);
+                const stored = await uploadImage(url);
+                return [{ id: nanoid(), name: `result-${index + 1}.png`, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }];
+            });
             message.success(t("imageWorkbench.addedReference"));
         } catch {
             message.error("加入参考图失败，无法读取原图，请刷新页面后重试。");
@@ -336,7 +357,7 @@ export default function ImagePage() {
             const index = log?.images.findIndex((item) => item.id === imageId) ?? -1;
             if (!log || index < 0) throw new Error();
             const image = log.images[index];
-            await addResultToReferences({ ...image, dataUrl: image.storageKey ? await resolveImageUrl(image.storageKey) || image.dataUrl : image.dataUrl }, index);
+            await addResultToReferences(image, index);
         } catch { message.error("无法读取历史图片，请重新选择"); }
     };
 
@@ -344,8 +365,10 @@ export default function ImagePage() {
         if (payload.kind === "text") {
             setPrompt(payload.content);
         } else if (payload.kind === "image") {
-            const stored = await uploadImage(payload.dataUrl);
-            setReferences((value) => [...value, { id: nanoid(), name: payload.title, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }]);
+            await importReferences(async () => {
+                const stored = await uploadImage(payload.dataUrl);
+                return [{ id: nanoid(), name: payload.title, type: stored.mimeType, dataUrl: stored.url, storageKey: stored.storageKey }];
+            });
         } else {
             message.warning(t("imageWorkbench.unsupportedAsset"));
         }
@@ -629,7 +652,7 @@ export default function ImagePage() {
                                 >
                                     {references.map((item, index) => (
                                         <div key={item.id} className="group relative size-20 shrink-0 overflow-hidden rounded-md border border-stone-200 dark:border-stone-800">
-                                            <img src={previewUrlFor(item.storageKey) || item.dataUrl} alt={item.name} className="size-full object-cover" />
+                                            <StoredImageThumbnail storageKey={item.storageKey} src={item.dataUrl} alt={item.name} className="size-full object-cover" />
                                             <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">{imageReferenceLabel(index)}</span>
                                             <ReferenceOrderButtons index={index} total={references.length} onMove={(offset) => setReferences((value) => moveListItem(value, index, offset))} />
                                             <button
@@ -768,9 +791,12 @@ function ResultImageCard({
 }) {
     const { t } = useTranslation();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const thumbnail = useStoredImage(image.storageKey, image.dataUrl);
+    const original = useStoredMedia(previewOpen ? image.storageKey : undefined, previewOpen ? image.dataUrl : undefined, 'image');
     return (
         <div className="overflow-hidden rounded-lg border border-stone-200 bg-background dark:border-stone-800">
-            <Image src={previewUrlFor(image.storageKey) || image.dataUrl} preview={{ src: image.dataUrl }} alt={t("imageWorkbench.resultAlt", { count: index + 1 })} className="aspect-square object-cover" />
+            <Image src={thumbnail.source} onError={thumbnail.onError} preview={{ src: original || thumbnail.source, visible: previewOpen, onVisibleChange: setPreviewOpen }} alt={t("imageWorkbench.resultAlt", { count: index + 1 })} className="aspect-square object-cover" />
             <div className="space-y-2 border-t border-stone-200 px-3 py-2.5 dark:border-stone-800">
                 <div className="flex min-w-0 gap-x-2 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
                     <span>
@@ -966,7 +992,7 @@ function LogCard({ log, selected, active, onSelectedChange, onClick }: { log: Ge
                         {thumbnails.length ? (
                             <div className="mt-2 flex gap-1 overflow-hidden">
                                 {thumbnails.map((image) => (
-                                    <img key={image.id} src={previewUrlFor(image.storageKey) || image.dataUrl} alt="" draggable title="拖到参考图区" onDragStart={(event) => {
+                                    <StoredImageThumbnail key={image.id} storageKey={image.storageKey} src={image.dataUrl} alt="" draggable title="拖到参考图区" onDragStart={(event) => {
                                         event.stopPropagation();
                                         event.dataTransfer.effectAllowed = "copy";
                                         event.dataTransfer.setData(HISTORY_IMAGE_DRAG_TYPE, JSON.stringify({ logId: log.id, imageId: image.id }));
@@ -1010,7 +1036,7 @@ async function readStoredLogs() {
             values.push(value);
         });
         const scope = getDocumentBatchScope();
-        const logs = await Promise.all(values.map(normalizeLog));
+        const logs = await Promise.all(values.map(value => normalizeLog(value, true)));
         return logs.filter((log) => !log.scopeId || log.scopeId === scope).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch {
         return [];
@@ -1022,15 +1048,17 @@ async function readStoredLog(id: string): Promise<GenerationLog | null> {
     return value ? normalizeLog(value) : null;
 }
 
-async function normalizeLog(log: Partial<GenerationLog>): Promise<GenerationLog> {
+async function normalizeLog(log: Partial<GenerationLog>, deferOriginals = false): Promise<GenerationLog> {
     const references = await Promise.all(
         (log.references || []).map(async (item) => {
+            if (deferOriginals && item.storageKey) return item;
             void ensureImagePreview(item.storageKey);
             return { ...item, dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl) };
         }),
     );
     const images = await Promise.all(
         (log.images || []).map(async (item) => {
+            if (deferOriginals && item.storageKey) return item;
             void ensureImagePreview(item.storageKey);
             return { ...item, dataUrl: await resolveImageUrl(item.storageKey, item.dataUrl) };
         }),

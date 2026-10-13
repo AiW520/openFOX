@@ -48,6 +48,8 @@ export interface UnifiedToolbarProps {
    * (可选) 云端同步设置打开回调
    */
   onOpenCloudSync?: () => void;
+  /** 工作流模式打开回调 */
+  onOpenWorkflowMode?: () => void;
   /**
    * (可选) 知识库开关回调
    */
@@ -55,10 +57,12 @@ export interface UnifiedToolbarProps {
   /**
    * (可选) 素材库打开回调
    */
-  onOpenMediaLibrary?: (config?: Partial<MediaLibraryConfig> & {
-    selectButtonText?: string;
-    batchSelectButtonText?: string;
-  }) => void;
+  onOpenMediaLibrary?: (
+    config?: Partial<MediaLibraryConfig> & {
+      selectButtonText?: string;
+      batchSelectButtonText?: string;
+    }
+  ) => void;
   /**
    * 延后功能层是否已启用
    */
@@ -99,10 +103,12 @@ export interface ToolbarSectionProps {
   /**
    * 素材库打开回调
    */
-  onOpenMediaLibrary?: (config?: Partial<MediaLibraryConfig> & {
-    selectButtonText?: string;
-    batchSelectButtonText?: string;
-  }) => void;
+  onOpenMediaLibrary?: (
+    config?: Partial<MediaLibraryConfig> & {
+      selectButtonText?: string;
+      batchSelectButtonText?: string;
+    }
+  ) => void;
 
   /**
    * 延后功能层是否已启用

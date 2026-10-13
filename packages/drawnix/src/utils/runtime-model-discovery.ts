@@ -1,4 +1,13 @@
 import {
+  isCurrentTuziEndpoint,
+  isVerifiedTuziProvider,
+  TUZI_PROVIDER_REUSE_EVENT,
+} from '../services/tuzi-provider-reuse-state';
+import {
+  requestTuziParentContext,
+  TUZI_BRIDGE_EVENT,
+} from '../services/tuzi-postmessage-bridge';
+import {
   type ModelConfig,
   type ModelType,
   ModelVendor,
@@ -172,7 +181,8 @@ function extractDiscoveryErrorMessage(
 async function fetchRemoteModelList(
   baseUrl: string,
   apiKey: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  accountManaged = false
 ): Promise<string> {
   const controller =
     typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -183,11 +193,13 @@ async function fetchRemoteModelList(
   if (signal?.aborted) abortFromCaller();
   signal?.addEventListener('abort', abortFromCaller, { once: true });
   try {
-    const requestUrl = getModelListRequestUrl(baseUrl);
+    const requestUrl = getModelListRequestUrl(baseUrl, accountManaged);
     const response = await publisherAwareFetch(apiKey, requestUrl, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        'Cache-Control': 'no-cache',
       },
+      cache: 'no-store',
       ...(controller ? { signal: controller.signal } : {}),
     });
 
@@ -213,7 +225,10 @@ async function fetchRemoteModelList(
   }
 }
 
-function getModelListRequestUrl(baseUrl: string): string {
+function getModelListRequestUrl(
+  baseUrl: string,
+  accountManaged: boolean
+): string {
   if (typeof window === 'undefined') {
     return `${baseUrl}/models`;
   }
@@ -226,7 +241,11 @@ function getModelListRequestUrl(baseUrl: string): string {
     ) {
       const path = `${parsed.pathname.replace(/\/+$/, '')}/models`;
       return new URL(
-        `/__opentu_tuzi_session__${path.startsWith('/') ? path : `/${path}`}`,
+        `${
+          accountManaged
+            ? '/__opentu_tuzi_session__'
+            : '/__opentu_tuzi_proxy__/api'
+        }${path.startsWith('/') ? path : `/${path}`}`,
         window.location.origin
       ).toString();
     }
@@ -257,7 +276,8 @@ async function fetchRemoteModelListWithFallback(
   primaryBaseUrl: string,
   apiKey: string,
   fallbackBaseUrls: string[] = [],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  accountManaged = false
 ): Promise<string> {
   const baseUrls = buildModelDiscoveryBaseUrls(
     primaryBaseUrl,
@@ -267,7 +287,12 @@ async function fetchRemoteModelListWithFallback(
 
   for (let index = 0; index < baseUrls.length; index += 1) {
     try {
-      return await fetchRemoteModelList(baseUrls[index], apiKey, signal);
+      return await fetchRemoteModelList(
+        baseUrls[index],
+        apiKey,
+        signal,
+        accountManaged
+      );
     } catch (error) {
       if (error instanceof Error && !/failed to fetch/i.test(error.message)) {
         throw error;
@@ -1190,7 +1215,8 @@ export function adaptRuntimeModel(model: RemoteModelListItem): ModelConfig | nul
     const clonedConfig = cloneModelConfig(staticConfig);
     if (
       GPT_IMAGE_25_MODEL_IDS.includes(staticConfig.id) ||
-      GPT_IMAGE_2_MODEL_IDS.includes(staticConfig.id)
+      GPT_IMAGE_2_MODEL_IDS.includes(staticConfig.id) ||
+      staticConfig.id === 'gemini-nano-banana-2.1'
     ) {
       return clonedConfig;
     }
@@ -1281,17 +1307,19 @@ function getProfileById(profileId: string): ProviderProfile | null {
 }
 
 function isProfileEnabled(profileId: string): boolean {
-  if (profileId === LEGACY_DEFAULT_PROVIDER_PROFILE_ID) {
-    const profile = getProfileById(profileId);
-    // An explicitly configured API key does not require a Tuzi login token.
-    return profile?.enabled !== false && (
-      !isTuziEmbeddedMode() ||
-      hasTuziSystemToken() ||
-      Boolean(profile?.apiKey?.trim() && profile?.baseUrl?.trim())
-    );
+  const profile = getProfileById(profileId);
+  if (
+    isTuziEmbeddedMode() &&
+    profile &&
+    isCurrentTuziEndpoint(profile.baseUrl)
+  ) {
+    return profile.id.startsWith('tuzi-managed-')
+      ? profile.enabled !== false && hasTuziSystemToken()
+      : profile.id.startsWith('tuzi-token-')
+      ? isVerifiedTuziProvider(profile)
+      : profile.enabled !== false;
   }
-
-  return getProfileById(profileId)?.enabled !== false;
+  return profile?.enabled !== false;
 }
 
 function canDiscoverProfileModels(profile: ProviderProfile | null): boolean {
@@ -1473,6 +1501,16 @@ class RuntimeModelDiscoveryStore {
   private revision = 0;
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener?.(
+        TUZI_PROVIDER_REUSE_EVENT,
+        this.handleProfileSettingsChange
+      );
+      window.addEventListener?.(
+        TUZI_BRIDGE_EVENT,
+        this.handleProfileSettingsChange
+      );
+    }
     this.catalogStates = this.loadCatalogStatesFromSettings();
     this.migrateLegacyCacheIfNeeded();
     this.syncRuntimeModelConfigs();
@@ -1979,6 +2017,23 @@ class RuntimeModelDiscoveryStore {
       throw new Error('缺少 API Key');
     }
 
+    if (isCurrentTuziEndpoint(baseUrl)) {
+      if (
+        typeof window !== 'undefined' &&
+        window.parent &&
+        window.parent !== window
+      )
+        await requestTuziParentContext();
+      if (isTuziEmbeddedMode()) {
+        const profile = getProfileById(profileId);
+        if (
+          !profile ||
+          !isProfileEnabled(profileId) ||
+          profile.apiKey.trim() !== trimmedApiKey
+        )
+          throw new Error('请先关联账户并核验该供应商令牌');
+      }
+    }
     const normalizedBaseUrl = normalizeModelApiBaseUrl(baseUrl);
     const signature = buildDiscoverySignature(normalizedBaseUrl, trimmedApiKey);
     const options = isAbortSignal(optionsOrSignal)
@@ -2048,7 +2103,9 @@ class RuntimeModelDiscoveryStore {
       normalizedBaseUrl,
       trimmedApiKey,
       fallbackBaseUrls,
-      options.signal
+      options.signal,
+      profileId.startsWith('tuzi-managed-') ||
+        profileId.startsWith('tuzi-token-')
     );
 
     let parsed: unknown;

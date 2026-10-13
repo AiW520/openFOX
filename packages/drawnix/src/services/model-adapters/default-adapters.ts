@@ -35,6 +35,7 @@ import { registerSeedreamAdapter } from './seedream-adapter';
 import { registerSeedanceAdapter } from './seedance-adapter';
 import { registerGPTImageAdapter } from './gpt-image-adapter';
 import { registerTuziGPTImageAdapter } from './tuzi-gpt-image-adapter';
+import { registerTuziFlux3ImageAdapter } from './tuzi-flux-3-image-adapter';
 import { registerCustomHttpAdapters } from './custom-http-adapter';
 import { registerSeedance2Adapter } from './seedance2-adapter';
 import {
@@ -49,6 +50,7 @@ const imageModelIds = [...IMAGE_MODEL_VIP_OPTIONS, ...IMAGE_MODEL_MORE_OPTIONS]
       !modelId.startsWith('mj-') &&
       !modelId.startsWith('bfl-flux-') &&
       !modelId.startsWith('flux-kontext-') &&
+      modelId !== 'flux-3-image' &&
       !modelId.includes('seedream') // 所有 Seedream 统一由 seedream-adapter 处理
   );
 
@@ -192,6 +194,14 @@ export const geminiImageAdapter: ImageModelAdapter = {
     const quality =
       resolveImageResolutionTier(request.params) ||
       (isGPTImage2Model(model) ? '1k' : undefined);
+    const thinking = request.params?.thinking;
+    if (
+      model === 'gemini-nano-banana-2.1' &&
+      thinking !== undefined &&
+      thinking !== 'minimal' && thinking !== 'medium' && thinking !== 'high'
+    ) {
+      throw new Error('Nano Banana 2.1 Thinking 必须为 minimal、medium 或 high');
+    }
     const responseFormat = request.params?.response_format as
       | 'url'
       | 'b64_json'
@@ -204,6 +214,9 @@ export const geminiImageAdapter: ImageModelAdapter = {
       image: request.referenceImages,
       omitDefaultResponseFormat: isGptImageModel(model),
       quality,
+      ...(model === 'gemini-nano-banana-2.1'
+        ? { thinking: thinking as 'minimal' | 'medium' | 'high' | undefined }
+        : {}),
       count:
         typeof request.params?.n === 'number' ? request.params.n : undefined,
       model,
@@ -353,6 +366,7 @@ export function registerDefaultModelAdapters(): void {
   registerCustomHttpAdapters();
   registerGPTImageAdapter();
   registerTuziGPTImageAdapter();
+  registerTuziFlux3ImageAdapter();
   registerModelAdapter(geminiImageAdapter);
   registerHappyHorseAdapter();
   registerSeedance2Adapter();

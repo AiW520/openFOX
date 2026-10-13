@@ -104,7 +104,7 @@ describe('featured A1 content carousel', () => {
     render(<FeaturedContent onOpenCanvas={vi.fn()} />);
 
     expect(screen.getAllByRole('button', { name: /^查看/ })).toHaveLength(5);
-    expect(screen.getByText('新版画布更新')).toBeTruthy();
+    expect(screen.getByText('创作画布更新')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '下一条精选内容' }));
 
     expect(screen.getByText('东方留白')).toBeTruthy();

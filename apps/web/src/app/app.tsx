@@ -20,6 +20,8 @@ import {
   requestServiceWorkerIdlePrefetch,
   MessagePlugin,
   hasTuziSystemToken,
+  importLocalTuziCredentials,
+  isLocalTuziSession,
   isTuziEmbeddedMode,
   syncTuziSessionProvidersOnStartup,
 } from '@drawnix/drawnix/runtime';
@@ -50,6 +52,8 @@ const NewExperienceSettingsOverlay = lazy(() =>
     default: module.NewExperienceSettingsOverlay,
   }))
 );
+
+importLocalTuziCredentials();
 
 const Drawnix = lazy(() =>
   import('@drawnix/drawnix').then((module) => ({
@@ -115,7 +119,7 @@ function updateBootStatus(options: { progress?: number; tip?: string }): void {
 let tuziStartupPromise: Promise<boolean> | null = null;
 
 function shouldWaitForTuziStartup(): boolean {
-  return isTuziEmbeddedMode() && hasTuziSystemToken();
+  return (isTuziEmbeddedMode() || isLocalTuziSession()) && hasTuziSystemToken();
 }
 
 function getTuziStartupPromise(): Promise<boolean> | null {
@@ -163,6 +167,7 @@ function updateBoardIdInUrl(
   replace: boolean = false
 ): void {
   const url = new URL(window.location.href);
+  if (url.pathname === '/workflow' || url.pathname.startsWith('/workflow/')) return;
   if (boardId) {
     url.searchParams.set(BOARD_URL_PARAM, boardId);
   } else {
@@ -226,20 +231,21 @@ export function App() {
   const compactScreen = useCompactScreen();
   const [experienceVersion, setExperienceVersion] = useState<ExperienceVersion>(
     () => {
+      if (window.location.pathname === '/workflow' || window.location.pathname.startsWith('/workflow/')) return 'new';
       const entry = new URLSearchParams(window.location.search).get(
         'experience'
       );
       return entry === 'new' || entry === 'legacy'
         ? entry
-        : readExperienceVersion(undefined, compactScreen ? 'new' : 'legacy');
+        : readExperienceVersion(undefined, 'new');
     }
   );
   const [showNewHome, setShowNewHome] = useState(
-    () => !window.location.pathname.startsWith('/workflow') && new URLSearchParams(window.location.search).get('view') !== 'canvas'
+    () => !window.location.pathname.startsWith('/workflow') && new URLSearchParams(window.location.search).get('view') !== 'canvas' && new URLSearchParams(window.location.search).get('experience') !== 'legacy'
   );
   const [showHomeSettings, setShowHomeSettings] = useState(false);
   const isNewExperience = experienceVersion === 'new';
-  const isNewHome = isNewExperience && showNewHome;
+  const isNewHome = showNewHome;
   useEffect(() => {
     if (!compactScreen) return;
     const updateVisibleHeight = () => document.documentElement.style.setProperty(
@@ -260,7 +266,7 @@ export function App() {
       const workflow = url.pathname === '/workflow' || url.pathname.startsWith('/workflow/');
       const version = workflow ? 'new' : url.searchParams.get('experience');
       if (version === 'new' || version === 'legacy') setExperienceVersion(version);
-      setShowNewHome(!workflow && url.searchParams.get('view') !== 'canvas');
+      setShowNewHome(!workflow && url.searchParams.get('view') !== 'canvas' && version !== 'legacy');
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
@@ -275,6 +281,18 @@ export function App() {
     setShowNewHome(!url.pathname.startsWith('/workflow') && url.searchParams.get('view') !== 'canvas');
     setShowHomeSettings(false);
     window.history.replaceState(window.history.state, '', url);
+  };
+  const openWorkbenchHome = () => {
+    if (experienceVersion === 'new' && !showNewHome) {
+      experienceNavigation(new URL(window.location.href), 'legacy', 'new');
+    }
+    setShowNewHome(true);
+    setShowHomeSettings(false);
+    const url = new URL(window.location.href);
+    url.pathname = '/';
+    url.searchParams.delete('experience');
+    url.searchParams.delete('view');
+    window.history.pushState(window.history.state, '', url);
   };
   const [isLoading, setIsLoading] = useState(true);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -394,6 +412,7 @@ export function App() {
   // Initialize workspace and handle migration
   useEffect(() => {
     const initialize = async () => {
+      importLocalTuziCredentials();
       // 检查是否需要显示崩溃恢复对话框
       if (
         crashRecoveryService.shouldShowSafeModePrompt() &&
@@ -1070,55 +1089,24 @@ export function App() {
 
   return (
     <div className={`${isNewHome ? styles.experienceRoot : styles.canvasRoot} ${compactScreen ? styles.compactRoot : ''}`}>
-      {(!isNewExperience || isNewHome) && (
-        <div className={styles.experienceChrome}>
-          <div className={styles.experienceSwitcher} aria-label="体验版本">
-            <button
-              type="button"
-              aria-pressed={!isNewExperience}
-              className={!isNewExperience ? styles.active : undefined}
-              onClick={() => switchExperience('legacy')}
-            >
-              旧版本
-            </button>
-            <button
-              type="button"
-              aria-pressed={isNewExperience}
-              className={isNewExperience ? styles.active : undefined}
-              onClick={() => switchExperience('new')}
-            >
-              新版本
-            </button>
-          </div>
-        </div>
-      )}
       {isNewHome && (
         <Suspense fallback={null}>
           <NewExperienceHome
             currentBoardId={currentBoardId}
             hasCanvasContent={value.children.length > 0}
-            onOpenCanvas={() => {
-              setShowNewHome(false);
-              const url = new URL(window.location.href);
-              url.searchParams.set('view', 'canvas');
-              window.history.replaceState(window.history.state, '', url);
-            }}
+            canvasType={experienceVersion}
+            onSelectCanvas={setExperienceVersion}
+            onOpenCanvas={() => switchExperience(experienceVersion)}
             onOpenSettings={() => setShowHomeSettings(true)}
           />
         </Suspense>
       )}
-      {showHomeSettings && <Suspense fallback={null}><NewExperienceSettingsOverlay initialView={isNewHome ? 'tuzi-account' : 'providers'} onClose={() => setShowHomeSettings(false)} /></Suspense>}
+      {showHomeSettings && <Suspense fallback={null}><NewExperienceSettingsOverlay initialView="providers" onClose={() => setShowHomeSettings(false)} /></Suspense>}
       {isNewExperience && !isNewHome ? <Suspense fallback={null}>
         <NewCanvasHost boardId={currentBoardId} onLegacy={() => switchExperience('legacy')}
-          onHome={() => {
-            setShowNewHome(true);
-            const url = new URL(window.location.href);
-            url.pathname = '/';
-            url.searchParams.delete('view');
-            window.history.replaceState(window.history.state, '', url);
-          }}
+          onHome={openWorkbenchHome}
           onProviderSettings={() => setShowHomeSettings(true)} />
-      </Suspense> : !isNewExperience && <div
+      </Suspense> : !isNewExperience && !isNewHome && <div
         style={{
           position: 'absolute',
           inset: 0,
@@ -1126,14 +1114,10 @@ export function App() {
       >
         <Suspense fallback={null}>
           <Drawnix
-            canvasLayout="legacy"
-            onBackToNewHome={() => {
-              setShowNewHome(true);
-              const url = new URL(window.location.href);
-              url.searchParams.delete('view');
-              window.history.replaceState(window.history.state, '', url);
-            }}
-            onSwitchToLegacy={() => switchExperience('legacy')}
+            canvasLayout="workbench"
+            onBackToNewHome={openWorkbenchHome}
+            onSwitchToLegacy={() => switchExperience('new')}
+            onOpenWorkflowMode={() => switchExperience('new')}
             value={value.children}
             viewport={value.viewport}
             theme={value.theme}

@@ -1,3 +1,9 @@
+import {
+  isCurrentTuziEndpoint,
+  isVerifiedTuziProvider,
+  getTuziProviderVerification,
+  getTuziActiveProviderId,
+} from '../services/tuzi-provider-reuse-state';
 /**
  * 通用的全局设置管理器
  * 统一管理应用程序的所有配置设置
@@ -7,7 +13,10 @@
 import { CryptoUtils } from './crypto-utils';
 import { DRAWNIX_SETTINGS_KEY } from '../constants/storage';
 import { configIndexedDBWriter } from './config-indexeddb-writer';
-import { isTuziEmbeddedMode } from '../services/tuzi-embedded-config';
+import {
+  isTuziEmbeddedMode,
+  tuziEmbeddedConfig,
+} from '../services/tuzi-embedded-config';
 import { getTuziSystemUserId } from '../services/tuzi-token-auth';
 import { resolveTuziActiveProviderGroup } from '../services/tuzi-provider-selection';
 import type { GeminiConfig } from './gemini-api/types';
@@ -394,6 +403,8 @@ class SettingsManager {
         : {};
 
     return {
+      independentManualProvidersV1:
+        migrations.independentManualProvidersV1 === true,
       legacyDefaultImageApiCompatibilityV1:
         migrations.legacyDefaultImageApiCompatibilityV1 === true,
       legacyDefaultImageModelV1: migrations.legacyDefaultImageModelV1 === true,
@@ -624,8 +635,10 @@ class SettingsManager {
     );
     return {
       id: LEGACY_DEFAULT_PROVIDER_PROFILE_ID,
-      name: TUZI_DEFAULT_PROVIDER_NAME,
-      iconUrl: TUZI_PROVIDER_ICON_URL,
+      name:
+        normalizeNullableString(profile?.name) || TUZI_DEFAULT_PROVIDER_NAME,
+      iconUrl:
+        normalizeNullableString(profile?.iconUrl) || TUZI_PROVIDER_ICON_URL,
       homepageUrl: this.normalizeHomepageUrl(profile?.homepageUrl),
       providerType,
       baseUrl,
@@ -640,7 +653,7 @@ class SettingsManager {
         this.getLegacyDefaultImageApiCompatibilityFallback(baseUrl)
       ),
       preferAsyncImageEndpoint: profile?.preferAsyncImageEndpoint === true,
-      enabled: true,
+      enabled: profile?.enabled !== false,
       capabilities: { ...DEFAULT_PROVIDER_CAPABILITIES },
     };
   }
@@ -659,8 +672,10 @@ class SettingsManager {
 
     return {
       id: TUZI_ORIGINAL_PROVIDER_PROFILE_ID,
-      name: TUZI_ORIGINAL_PROVIDER_NAME,
-      iconUrl: TUZI_PROVIDER_ICON_URL,
+      name:
+        normalizeNullableString(profile?.name) || TUZI_ORIGINAL_PROVIDER_NAME,
+      iconUrl:
+        normalizeNullableString(profile?.iconUrl) || TUZI_PROVIDER_ICON_URL,
       homepageUrl:
         this.normalizeHomepageUrl(profile?.homepageUrl) ||
         'https://api.tu-zi.com/',
@@ -700,8 +715,9 @@ class SettingsManager {
 
     return {
       id: TUZI_MIX_PROVIDER_PROFILE_ID,
-      name: TUZI_MIX_PROVIDER_NAME,
-      iconUrl: TUZI_PROVIDER_ICON_URL,
+      name: normalizeNullableString(profile?.name) || TUZI_MIX_PROVIDER_NAME,
+      iconUrl:
+        normalizeNullableString(profile?.iconUrl) || TUZI_PROVIDER_ICON_URL,
       homepageUrl:
         this.normalizeHomepageUrl(profile?.homepageUrl) ||
         'https://api.tu-zi.com/',
@@ -741,8 +757,9 @@ class SettingsManager {
 
     return {
       id: TUZI_CODEX_PROVIDER_PROFILE_ID,
-      name: TUZI_CODEX_PROVIDER_NAME,
-      iconUrl: TUZI_PROVIDER_ICON_URL,
+      name: normalizeNullableString(profile?.name) || TUZI_CODEX_PROVIDER_NAME,
+      iconUrl:
+        normalizeNullableString(profile?.iconUrl) || TUZI_PROVIDER_ICON_URL,
       homepageUrl:
         this.normalizeHomepageUrl(profile?.homepageUrl) ||
         'https://api.tu-zi.com/',
@@ -782,8 +799,10 @@ class SettingsManager {
 
     return {
       id: TUZI_BUSINESS_PROVIDER_PROFILE_ID,
-      name: TUZI_BUSINESS_PROVIDER_NAME,
-      iconUrl: TUZI_PROVIDER_ICON_URL,
+      name:
+        normalizeNullableString(profile?.name) || TUZI_BUSINESS_PROVIDER_NAME,
+      iconUrl:
+        normalizeNullableString(profile?.iconUrl) || TUZI_PROVIDER_ICON_URL,
       homepageUrl:
         this.normalizeHomepageUrl(profile?.homepageUrl) ||
         'https://business.tu-zi.com/',
@@ -1152,6 +1171,23 @@ class SettingsManager {
           profile.id !== TUZI_BUSINESS_PROVIDER_PROFILE_ID
       ),
     ];
+
+    // Repair the old account-sync side effect once, then preserve user toggles.
+    if (
+      tuziEmbeddedConfig.enabled &&
+      migrations.independentManualProvidersV1 !== true
+    ) {
+      providerProfiles.forEach((profile) => {
+        if (
+          !profile.id.startsWith('tuzi-managed-') &&
+          !profile.id.startsWith('tuzi-token-')
+        ) {
+          profile.enabled = true;
+        }
+      });
+      migrations.independentManualProvidersV1 = true;
+      this.shouldPersistSettingsAfterInitialization = true;
+    }
 
     const validProfileIds = new Set(
       providerProfiles.map((profile) => profile.id)
@@ -1831,19 +1867,30 @@ class SettingsManager {
   }
 
   private getEmbeddedManagedProvider(): ProviderProfile | null {
-    if (!isTuziEmbeddedMode()) return null;
+    if (!isTuziEmbeddedMode() || !getTuziSystemUserId()) return null;
     const managed = this.settings.providerProfiles.filter(
       (profile) =>
-        profile.id.startsWith('tuzi-managed-') &&
+        (profile.id.startsWith('tuzi-managed-') ||
+          isVerifiedTuziProvider(profile)) &&
         profile.enabled !== false &&
         Boolean(profile.apiKey?.trim())
     );
     const activeGroup = resolveTuziActiveProviderGroup(
       getTuziSystemUserId(),
-      managed.map((profile) => profile.pricingGroup || '')
+      managed.map(
+        (profile) =>
+          getTuziProviderVerification(profile)?.groups[0] ||
+          profile.pricingGroup ||
+          ''
+      )
     );
     return (
-      managed.find((profile) => profile.pricingGroup === activeGroup) ||
+      managed.find((profile) => profile.id === getTuziActiveProviderId()) ||
+      managed.find(
+        (profile) =>
+          (getTuziProviderVerification(profile)?.groups[0] ||
+            profile.pricingGroup) === activeGroup
+      ) ||
       managed.find((profile) => profile.pricingGroup === 'default') ||
       managed[0] ||
       null
@@ -2067,9 +2114,35 @@ class SettingsManager {
     );
     const hasExplicitProfile = Boolean(requestedModelRef?.profileId);
     const profileIsManaged = profile?.id.startsWith('tuzi-managed-') === true;
+    const embedded = isTuziEmbeddedMode();
+    const hasActiveProviderOverride =
+      !hasExplicitProfile && Boolean(getTuziActiveProviderId());
+    const builtInTuzi =
+      !profile ||
+      [
+        LEGACY_DEFAULT_PROVIDER_PROFILE_ID,
+        TUZI_ORIGINAL_PROVIDER_PROFILE_ID,
+        TUZI_MIX_PROVIDER_PROFILE_ID,
+        TUZI_CODEX_PROVIDER_PROFILE_ID,
+        TUZI_BUSINESS_PROVIDER_PROFILE_ID,
+      ].includes(profile.id);
     if (
-      isTuziEmbeddedMode() &&
-      ((!hasExplicitProfile && (!profile || !profile.apiKey?.trim())) ||
+      embedded &&
+      !(
+        profile?.apiKey?.trim() &&
+        !profileIsManaged &&
+        !hasActiveProviderOverride
+      ) &&
+      !(
+        profile &&
+        isVerifiedTuziProvider(profile) &&
+        !hasActiveProviderOverride
+      ) &&
+      ((hasActiveProviderOverride &&
+        profile &&
+        isCurrentTuziEndpoint(profile.baseUrl)) ||
+        (builtInTuzi && !(hasExplicitProfile && profile?.apiKey)) ||
+        (!hasExplicitProfile && (!profile || !profile.apiKey?.trim())) ||
         profileIsManaged)
     ) {
       profile = this.getEmbeddedManagedProvider();
@@ -2095,7 +2168,8 @@ class SettingsManager {
       profileName: profile?.name || null,
       providerType: profile?.providerType || null,
       baseUrl: normalizedProfileBaseUrl || normalizedLegacyBaseUrl,
-      apiKey: normalizedProfileApiKey || normalizedLegacyApiKey,
+      apiKey:
+        normalizedProfileApiKey || (embedded ? '' : normalizedLegacyApiKey),
       source: profile ? 'preset' : 'legacy',
     };
   }

@@ -8,7 +8,7 @@ import { registerModelAdapter } from './registry';
 import { sendAdapterRequest } from './context';
 import { IMAGE_GENERATION_TIMEOUT_MS } from '../../constants/TASK_CONSTANTS';
 import { ModelVendor } from '../../constants/model-config';
-import { buildMJPromptSuffix } from '../../utils/mj-params';
+import { buildMJPrompt } from '../../utils/mj-params';
 import {
   readProviderResponseJson,
   readProviderResponseText,
@@ -134,7 +134,7 @@ export const mjImageAdapter: ImageModelAdapter = {
 
     const submitResponse = await submitMJImagine(context, {
       botType: 'MID_JOURNEY',
-      prompt: `${request.prompt} ${buildMJPromptSuffix((request.params || {}) as Record<string, string>)}`.trim(),
+      prompt: buildMJPrompt(request.prompt, request.params),
       base64Array,
     });
 

@@ -1,3 +1,4 @@
+import { notifyTaskSubmitted } from '../submission-persistence';
 import type {
   AdapterContext,
   ImageGenerationRequest,
@@ -121,6 +122,9 @@ const submitFluxImage = async (
     baseUrl
   );
 
+  if (response.headers.get('content-type')?.includes('text/html')) {
+    throw new Error('Flux 接口返回 HTML 网页，未进入任务 API。Tuzi flux-3-image 请使用 /v1/images/generations');
+  }
   if (!response.ok) {
     const data = await readProviderResponseJson<Record<string, any>>(response).catch(
       () => null
@@ -224,7 +228,7 @@ export const fluxImageAdapter: ImageModelAdapter = {
       throw new Error('Flux API 未返回任务 ID');
     }
 
-    onSubmitted?.(remoteId);
+    await notifyTaskSubmitted(remoteId, onSubmitted);
     onProgress?.(10, 'processing');
 
     // 轮询结果

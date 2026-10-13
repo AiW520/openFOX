@@ -6,6 +6,8 @@ import {
   FileText,
   Image as ImageIcon,
   Layers3,
+  PencilRuler,
+  Workflow,
   Music2,
   X,
   Share2,
@@ -38,6 +40,8 @@ export interface NewExperienceHomeProps {
   hasCanvasContent?: boolean;
   onOpenCanvas: () => void;
   onOpenSettings: () => void;
+  canvasType?: 'legacy' | 'new';
+  onSelectCanvas?: (type: 'legacy' | 'new') => void;
 }
 
 type CreationType = Exclude<GenerationType, never>;
@@ -73,6 +77,8 @@ export function NewExperienceHome({
   hasCanvasContent = false,
   onOpenCanvas,
   onOpenSettings,
+  canvasType = 'new',
+  onSelectCanvas,
 }: NewExperienceHomeProps) {
   const compactScreen = useCompactScreen();
   const [prompt, setPrompt] = useState('');
@@ -106,7 +112,7 @@ export function NewExperienceHome({
     if (!normalizedPrompt || isPromptOptimizeOpen) return;
 
     requestAIInputPrefill({
-      target: 'workflow',
+      target: canvasType === 'new' ? 'workflow' : undefined,
       generationType: controls.generationType,
       prompt: normalizedPrompt,
       model: controls.selectedModel || undefined,
@@ -157,7 +163,7 @@ export function NewExperienceHome({
         <a
           className="new-experience__brand"
           href={homeUrl.href}
-          aria-label="OpenTu 新版首页"
+          aria-label="OpenTu 工作台首页"
           onClick={(event) => {
             // This is already the home view. Avoid reloading its unsent draft.
             if (
@@ -220,6 +226,10 @@ export function NewExperienceHome({
         </div> : <FeaturedContent onOpenCanvas={onOpenCanvas} />}
 
         <div className="new-experience__composer" ref={composerRef}>
+          <div className="new-experience__canvas-selector" role="group" aria-label="选择画布">
+            <button type="button" aria-pressed={canvasType === 'legacy'} onClick={() => onSelectCanvas?.('legacy')}><PencilRuler size={16} />自由画布</button>
+            <button type="button" aria-pressed={canvasType === 'new'} onClick={() => onSelectCanvas?.('new')}><Workflow size={16} />工作流画布</button>
+          </div>
           <div className="new-experience__composer-header">
             <div
               className="new-experience__type-tabs"
@@ -297,7 +307,7 @@ export function NewExperienceHome({
                   isPromptOptimizeOpen
                 }
                 onClick={handleStart}
-                aria-label="带入描述并进入新版画布"
+                aria-label="带入描述并进入画布"
               >
                 去画布创作
                 <ArrowRight size={18} />

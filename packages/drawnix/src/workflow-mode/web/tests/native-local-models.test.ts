@@ -37,12 +37,12 @@ describe("OpenTu complete local model parameters", () => {
     it("sends GPT Image dedicated settings with the configured local credentials", async () => {
         const fetcher = vi.fn().mockResolvedValue(json({ data: [{ url: "https://result.example/image.png", width: 1024, height: 1024 }] }));
         vi.stubGlobal("fetch", fetcher);
-        const config = configFor("gpt-image-2", "image", { n: 2, background: "transparent", output_format: "png", moderation: "low" });
+        const config = configFor("gpt-image-2", "image", { n: 2, background: "opaque", output_format: "png", moderation: "low" });
         config.channels[0].baseUrl = "https://api.openai.com";
         await requestGeneration(config, "test");
         expect(fetcher.mock.calls[0][0]).toBe("https://api.openai.com/v1/images/generations");
         expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer local-key");
-        expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ model: "gpt-image-2", n: 2, background: "transparent", output_format: "png", moderation: "low" });
+        expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ model: "gpt-image-2", n: 2, background: "opaque", output_format: "png", moderation: "low" });
     });
     it("sends Gemini image resolution through the existing direct provider path", async () => {
         const fetcher = vi.fn().mockResolvedValue(json({ data: [{ url: "https://result.example/image.png" }] }));
@@ -51,6 +51,33 @@ describe("OpenTu complete local model parameters", () => {
         await requestGeneration(config, "test");
         expect(fetcher.mock.calls[0][0]).toBe("https://local-provider.example/v1/images/generations");
         expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ model: "gemini-3-pro-image-preview", quality: "2k" });
+    });
+    it("sends Nano Banana 2.1 Thinking and image size through generateContent", async () => {
+        const fetcher = vi.fn().mockResolvedValue(json({ candidates: [{ content: { parts: [{ fileData: { fileUri: "https://result.example/image.jpg", mimeType: "image/jpeg" } }] } }] }));
+        vi.stubGlobal("fetch", fetcher);
+        const config = configFor("gemini-nano-banana-2.1", "image", { quality: "2k", size: "16x9", thinking: "high" }, "gemini");
+        await requestGeneration(config, "test");
+        expect(fetcher.mock.calls[0][0]).toBe("https://local-provider.example/v1beta/models/gemini-nano-banana-2.1:generateContent");
+        expect(JSON.parse(fetcher.mock.calls[0][1].body).generationConfig).toMatchObject({
+            responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "16:9", imageSize: "2K" }, thinkingConfig: { thinkingLevel: "high" },
+        });
+    });
+    it.each(["https://api.tu-zi.com", "https://api.tu-zi.com/v1"])("uses the Nano Banana 2.1 binding on an OpenAI Tuzi channel %s", async (baseUrl) => {
+        const fetcher = vi.fn().mockResolvedValue(json({ candidates: [{ content: { parts: [{ fileData: { fileUri: "https://result.example/image.jpg" } }] } }] }));
+        vi.stubGlobal("fetch", fetcher);
+        const config = configFor("gemini-nano-banana-2.1", "image", { quality: "1k", thinking: "minimal" });
+        config.channels[0].baseUrl = baseUrl;
+        expect(nativeModel(config, "image")?.referenceInputs?.images?.maxCount).toBe(14);
+        await requestLocalModelImage(config, "edit", ["data:image/png;base64,AAAA"]);
+        expect(fetcher.mock.calls[0][0]).toBe("https://api.tu-zi.com/v1beta/models/gemini-nano-banana-2.1:generateContent");
+        expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer local-key");
+        expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
+            contents: [{ parts: [{ text: "edit" }, { inline_data: { mime_type: "image/png", data: "AAAA" } }] }],
+            generationConfig: { thinkingConfig: { thinkingLevel: "minimal" } },
+        });
+        fetcher.mockClear();
+        await expect(requestLocalModelImage(config, "edit", Array(15).fill("data:image/png;base64,AAAA"))).rejects.toThrow();
+        expect(fetcher).not.toHaveBeenCalled();
     });
     it("sends Seedream resolution through its existing adapter", async () => {
         const fetcher = vi.fn().mockResolvedValue(json({ data: [{ url: "https://result.example/image.png" }] }));
@@ -98,9 +125,9 @@ describe("OpenTu complete local model parameters", () => {
             }),
         );
         vi.stubGlobal("fetch", fetcher);
-        const result = await requestAudioGeneration(configFor("suno_music", "audio", { sunoAction: "music", mv: "chirp-v5", title: "Title", tags: "jazz", instrumental: "true" }), "test");
+        const result = await requestAudioGeneration(configFor("suno_music", "audio", { sunoAction: "music", mv: "chirp-v6", title: "Title", tags: "jazz", instrumental: "true" }), "test");
         expect(fetcher.mock.calls[0][0]).toBe("https://local-provider.example/suno/submit/music");
-        expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ mv: "chirp-v5", title: "Title", tags: "jazz", make_instrumental: true });
+        expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ mv: "chirp-v6", title: "Title", tags: "jazz", make_instrumental: true });
         expect(result).toEqual({ kind: "audio", clips: ["https://result.example/a.mp3", "https://result.example/b.mp3"] });
     });
     it("validates invalid image settings before network calls", async () => {

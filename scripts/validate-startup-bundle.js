@@ -71,9 +71,9 @@ function collectStaticImports(entryAsset, visited = new Set()) {
 
   const source = fs.readFileSync(fullPath, 'utf8');
   STATIC_IMPORT_RE.lastIndex = 0;
-  let match;
-
-  while ((match = STATIC_IMPORT_RE.exec(source))) {
+  // Each recursive traversal needs its own iterator; a shared regexp cursor
+  // can skip sibling imports after returning from a child.
+  for (const match of source.matchAll(STATIC_IMPORT_RE)) {
     const imported = path.posix.normalize(
       path.posix.join(path.posix.dirname(entryAsset), match[1])
     );
@@ -216,10 +216,20 @@ const entryScripts = scriptMatches.filter(
 const entryDependencyGraph = new Set();
 entryScripts.forEach((asset) => {
   collectStaticImports(asset, entryDependencyGraph);
-  for (const dynamicAsset of collectDirectDynamicImports(asset)) {
-    collectStaticImports(dynamicAsset, entryDependencyGraph);
-  }
 });
+// Follow startup wrappers through main and bootstrap without eagerly including
+// feature chunks dynamically imported by the application itself.
+const pendingStartupAssets = Array.from(entryDependencyGraph);
+const inspectedStartupAssets = new Set();
+for (const asset of pendingStartupAssets) {
+  if (inspectedStartupAssets.has(asset)) continue;
+  inspectedStartupAssets.add(asset);
+  for (const dynamicAsset of collectDirectDynamicImports(asset)) {
+    if (!/^(?:main|bootstrap)-/.test(path.basename(dynamicAsset))) continue;
+    collectStaticImports(dynamicAsset, entryDependencyGraph);
+    pendingStartupAssets.push(...entryDependencyGraph);
+  }
+}
 
 const invalidStaticDeps = Array.from(entryDependencyGraph).filter(
   (asset) =>

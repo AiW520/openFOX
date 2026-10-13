@@ -62,10 +62,10 @@ export function NewCanvasHost({ boardId, onHome, onLegacy, onProviderSettings }:
     const currentProjectId = pathname.match(/^\/workflow\/canvas\/([^/]+)$/)?.[1];
     return <section className={`new-canvas-host${compactScreen ? ' new-canvas-host--compact' : ''}`} aria-label="无限画布">
         <header className="new-canvas-host__header" data-testid="workbench-topbar">
-            <button type="button" className="new-canvas-host__brand" onClick={onHome} title="返回新版首页"><ArrowLeft size={15} /><span>OpenTu</span></button>
-            <div className="new-canvas-host__version" role="group" aria-label="切换版本">
-                <button type="button" aria-pressed="false" onClick={onLegacy}>旧版本</button>
-                <button type="button" aria-pressed="true">新版本</button>
+            <button type="button" className="new-canvas-host__brand" onClick={onHome} title="返回工作台首页"><ArrowLeft size={15} /><span>OpenTu</span></button>
+            <div className="new-canvas-host__version" role="group" aria-label="切换画布">
+                <button type="button" aria-pressed="false" onClick={onLegacy}>自由画布</button>
+                <button type="button" aria-pressed="true">工作流画布</button>
             </div>
             <nav aria-label="画布快捷操作">
                 <button type="button" data-testid="workbench-config" onClick={() => { window.dispatchEvent(new CustomEvent('opentu:workflow:close-overlays')); onProviderSettings(); }}><SlidersHorizontal size={16} /><span>配置</span></button>

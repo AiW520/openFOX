@@ -18,6 +18,7 @@ import {
   clearSelectedElement,
   Transforms,
   getViewportOrigination,
+  BoardTransforms,
 } from '@plait/core';
 import {
   Suspense,
@@ -73,6 +74,9 @@ import { PopupDistributeButton } from './distribute-button';
 import { PopupBooleanButton } from './boolean-button';
 import { TextPropertyPanel } from './text-property-panel';
 import { PopupImage3DTransformButton } from './image-3d-transform-button';
+import { PopupImageDetailsButton } from './image-details-button';
+import { getCanvasGenerationDetailsSource } from '../../../utils/canvas-generation-details-source';
+import { getCanvasTargetCenteringOrigination } from '../../../utils/canvas-target-centering';
 import {
   AIImageIcon,
   AIVideoIcon,
@@ -113,6 +117,10 @@ import { VideoFrameSelector } from '../../video-frame-selector/video-frame-selec
 import { insertVideoFrame } from '../../../utils/video-frame';
 import { isToolElement } from '../../../plugins/with-tool';
 import { isWorkZoneElement } from '../../../plugins/with-workzone';
+import {
+  CANVAS_VIEW_SETTINGS_CHANGE_EVENT,
+  readCenterImageOnClickEnabled,
+} from '../../ai-input-bar/canvas-view-settings';
 import { splitAndInsertImages } from '../../../utils/image-splitter';
 import {
   LayerDecompositionCorrectionRequiredError,
@@ -196,7 +204,7 @@ const schedulePopupToolbarFrame = (callback: FrameRequestCallback) => {
   if (typeof window.requestAnimationFrame === 'function') {
     return window.requestAnimationFrame(callback);
   }
-  return window.setTimeout(() => callback(Date.now()), 0);
+  return window.setTimeout(() => callback(performance.now()), 16);
 };
 
 const cancelPopupToolbarFrame = (frameId: number) => {
@@ -218,6 +226,12 @@ export const PopupToolbar = () => {
   const { language, t } = useI18n();
   const [movingOrDragging, setMovingOrDragging] = useState(false);
   const movingOrDraggingRef = useRef(movingOrDragging);
+  const centerViewportAnimationRef = useRef<number | null>(null);
+  const isCenteringViewportRef = useRef(false);
+  const [centerImageOnClickEnabled, setCenterImageOnClickEnabled] = useState(
+    () => readCenterImageOnClickEnabled()
+  );
+  const centerImageOnClickEnabledRef = useRef(centerImageOnClickEnabled);
 
   // 视频帧选择弹窗状态
   const [showVideoFrameSelector, setShowVideoFrameSelector] = useState(false);
@@ -261,7 +275,16 @@ export const PopupToolbar = () => {
       }
     | undefined
   >();
+  const [popupToolbarPlacement, setPopupToolbarPlacement] = useState<
+    'top' | 'bottom'
+  >('top');
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const [imageDetailsRequest, setImageDetailsRequest] = useState<{
+    id: string; url?: string; taskId?: string; sequence: number;
+  } | null>(null);
+  const imageDetailsSequence = useRef(0);
+  const generationDetailsSource = selectedElements.length === 1
+    ? getCanvasGenerationDetailsSource(selectedElements[0]) : undefined;
 
   // 初始化全局鼠标位置跟踪
   useGlobalMousePosition();
@@ -325,11 +348,17 @@ export const PopupToolbar = () => {
   const open = selectedElements.length > 0 && !isSelectionMoving(board);
   const { viewport, selection, children } = board;
   const { refs, floatingStyles } = useFloating({
-    placement: 'top',
+    placement: popupToolbarPlacement,
     middleware: [
       offset(12), // Close to reference point
       shift({ padding: 16 }), // Ensure it stays within screen bounds
-      flip({ fallbackPlacements: ['bottom', 'right', 'left'] }), // Smart fallback positioning
+      flip({
+        // 输入框下方的图片优先将工具栏固定到图片下方，避免 flip 又翻回输入框上方。
+        fallbackPlacements:
+          popupToolbarPlacement === 'bottom'
+            ? ['right', 'left']
+            : ['bottom', 'right', 'left'],
+      }),
     ],
   });
   let state: {
@@ -356,6 +385,7 @@ export const PopupToolbar = () => {
     hasVideoMergeable?: boolean; // 是否显示视频合成按钮
     hasImageEdit?: boolean; // 是否显示图片编辑按钮
     hasRegenerateImage?: boolean; // 是否显示再次生成回填按钮
+    hasImageDetails?: boolean;
     hasCornerRadius?: boolean; // 是否显示圆角设置按钮
     cornerRadius?: number; // 当前圆角值
     hasSizeInput?: boolean; // 是否显示宽高输入
@@ -452,14 +482,14 @@ export const PopupToolbar = () => {
       PlaitDrawElement.isImage(imageElement) &&
       imageElement.url?.startsWith('data:image/svg+xml');
 
-    const isImageSelected =
+    const hasImageDetails =
       selectedElements.length === 1 &&
       !hasVideoSelected &&
       !hasToolSelected &&
       PlaitDrawElement.isDrawElement(selectedElements[0]) &&
       PlaitDrawElement.isImage(selectedElements[0]) &&
-      !isSvgImage && // 排除SVG图片
       !PlaitBoard.hasBeenTextEditing(board);
+    const isImageSelected = hasImageDetails && !isSvgImage;
 
     // 只有检测到分割线时才显示拆图按钮
     const hasSplitImage = isImageSelected;
@@ -666,6 +696,7 @@ export const PopupToolbar = () => {
       hasLayerDecomposition,
       hasImageEdit,
       hasRegenerateImage: isImageSelected,
+      hasImageDetails: !!generationDetailsSource && !PlaitBoard.hasBeenTextEditing(board),
       hasDownloadable,
       hasMergeable,
       hasVideoMergeable,
@@ -986,29 +1017,69 @@ export const PopupToolbar = () => {
       board,
       toHostPointFromViewBoxPoint(board, end)
     );
-    const referenceX = screenStart[0] + (screenEnd[0] - screenStart[0]) / 2;
-    const referenceY = screenStart[1];
+    const selectionTop = Math.min(screenStart[1], screenEnd[1]);
+    const selectionBottom = Math.max(screenStart[1], screenEnd[1]);
+    const inputContainers = Array.from(
+      document.querySelectorAll<HTMLElement>('.ai-input-bar__container')
+    );
+    const inputBars = inputContainers.length
+      ? inputContainers
+      : Array.from(
+          document.querySelectorAll<HTMLElement>(
+            '[data-testid="ai-input-bar"], .ai-input-bar'
+          )
+        );
+    const inputRects = inputBars
+      .map((inputBar) => inputBar.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    const toolbarHeight =
+      toolbarRef.current?.getBoundingClientRect().height ?? 48;
+    const toolbarWidth =
+      toolbarRef.current?.getBoundingClientRect().width ?? 600;
+    const selectionCenterX =
+      screenStart[0] + (screenEnd[0] - screenStart[0]) / 2;
+    const toolbarLeft = selectionCenterX - toolbarWidth / 2;
+    const toolbarRight = toolbarLeft + toolbarWidth;
+    const spacing = 12;
+    const topToolbarBottom = selectionTop - spacing;
+    const topPlacementOverlapsInput = inputRects.some(
+      (inputRect) =>
+        toolbarRight > inputRect.left &&
+        toolbarLeft < inputRect.right &&
+        topToolbarBottom > inputRect.top &&
+        topToolbarBottom - toolbarHeight < inputRect.bottom
+    );
+    const nextPlacement = topPlacementOverlapsInput ? 'bottom' : 'top';
+
+    setPopupToolbarPlacement((currentPlacement) =>
+      currentPlacement === nextPlacement ? currentPlacement : nextPlacement
+    );
+
+    const referenceX = selectionCenterX;
+    const referenceY =
+      nextPlacement === 'bottom' ? selectionBottom : selectionTop;
 
     refs.setPositionReference({
       getBoundingClientRect() {
         return {
-          width: 1,
-          height: 1,
+          // 使用选区中心的零尺寸参考点，让 Floating UI 以图片中心对齐工具栏。
+          width: 0,
+          height: 0,
           x: referenceX,
           y: referenceY,
           top: referenceY,
           left: referenceX,
-          right: referenceX + 1,
-          bottom: referenceY + 1,
+          right: referenceX,
+          bottom: referenceY,
         };
       },
     });
 
     setSelectionRect({
-      top: screenStart[1],
+      top: selectionTop,
       left: screenStart[0],
       right: screenEnd[0],
-      bottom: screenEnd[1],
+      bottom: selectionBottom,
       width: screenEnd[0] - screenStart[0],
       height: screenEnd[1] - screenStart[1],
     });
@@ -1024,6 +1095,45 @@ export const PopupToolbar = () => {
     }
   }, [board, movingOrDragging, open, refs]);
 
+  const centerSelectedElementsInViewport = useCallback(() => {
+    const targetOrigination = getCanvasTargetCenteringOrigination(board);
+    if (!targetOrigination) return;
+    const zoom = board.viewport.zoom;
+    const currentOrigination = getViewportOrigination(board) ?? [0, 0];
+    const startTime = performance.now();
+    const duration = 280;
+    const startOrigination: [number, number] = [
+      currentOrigination[0],
+      currentOrigination[1],
+    ];
+
+    if (centerViewportAnimationRef.current !== null) {
+      cancelPopupToolbarFrame(centerViewportAnimationRef.current);
+    }
+    isCenteringViewportRef.current = true;
+
+    const animate = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const nextOrigination: [number, number] = [
+        startOrigination[0] +
+          (targetOrigination[0] - startOrigination[0]) * easedProgress,
+        startOrigination[1] +
+          (targetOrigination[1] - startOrigination[1]) * easedProgress,
+      ];
+      BoardTransforms.updateViewport(board, nextOrigination, zoom);
+
+      if (progress < 1) {
+        centerViewportAnimationRef.current = schedulePopupToolbarFrame(animate);
+      } else {
+        centerViewportAnimationRef.current = null;
+        isCenteringViewportRef.current = false;
+      }
+    };
+
+    centerViewportAnimationRef.current = schedulePopupToolbarFrame(animate);
+  }, [board]);
+
   // 等待 viewBox/scroll 在缩放后落定，再更新 toolbar 和属性面板坐标。
   useEffect(() => {
     if (!open || movingOrDragging) {
@@ -1033,13 +1143,16 @@ export const PopupToolbar = () => {
     let cancelled = false;
     let frame = 0;
     let animationFrameId: number | null = null;
+    const maxFrames = isCenteringViewportRef.current
+      ? 0
+      : POPUP_TOOLBAR_POSITION_FRAMES;
 
     const run = () => {
       if (cancelled) {
         return;
       }
       updatePopupToolbarPosition();
-      if (frame >= POPUP_TOOLBAR_POSITION_FRAMES) {
+      if (frame >= maxFrames) {
         return;
       }
       frame += 1;
@@ -1086,33 +1199,129 @@ export const PopupToolbar = () => {
   }, [movingOrDragging]);
 
   useEffect(() => {
+    centerImageOnClickEnabledRef.current = centerImageOnClickEnabled;
+  }, [centerImageOnClickEnabled]);
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setCenterImageOnClickEnabled(readCenterImageOnClickEnabled());
+    };
+    window.addEventListener(
+      CANVAS_VIEW_SETTINGS_CHANGE_EVENT,
+      handleSettingsChange
+    );
+    return () =>
+      window.removeEventListener(
+        CANVAS_VIEW_SETTINGS_CHANGE_EVENT,
+        handleSettingsChange
+      );
+  }, []);
+
+  useEffect(() => {
     const { pointerUp, pointerMove } = board;
+    const container = PlaitBoard.getBoardContainer(board);
+    let clickStart: { x: number; y: number; id: number; moved: boolean } | null = null;
+    let pendingFrame: number | null = null;
+    const cancelCentering = () => {
+      if (pendingFrame !== null) cancelPopupToolbarFrame(pendingFrame);
+      pendingFrame = null;
+      if (centerViewportAnimationRef.current !== null) {
+        cancelPopupToolbarFrame(centerViewportAnimationRef.current);
+        centerViewportAnimationRef.current = null;
+      }
+      isCenteringViewportRef.current = false;
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      cancelCentering();
+      setImageDetailsRequest(null);
+      clickStart = event.button === 0 && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey
+        ? { x: event.clientX, y: event.clientY, id: event.pointerId, moved: false }
+        : null;
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (clickStart && Math.hypot(event.clientX - clickStart.x, event.clientY - clickStart.y) > 4) {
+        clickStart.moved = true;
+      }
+    };
+    const onInterrupt = () => {
+      clickStart = null;
+      cancelCentering();
+    };
+    container.addEventListener('pointerdown', onPointerDown, true);
+    container.addEventListener('pointermove', onPointerMove, true);
+    container.addEventListener('pointercancel', onInterrupt, true);
+    container.addEventListener('wheel', onInterrupt, { capture: true, passive: true });
 
     board.pointerMove = (event: PointerEvent) => {
       if (
         (isMovingElements(board) || isDragging(board)) &&
         !movingOrDraggingRef.current
       ) {
+        movingOrDraggingRef.current = true;
         setMovingOrDragging(true);
       }
       pointerMove(event);
     };
 
     board.pointerUp = (event: PointerEvent) => {
-      if (
-        movingOrDraggingRef.current &&
-        (isMovingElements(board) || isDragging(board))
-      ) {
-        setMovingOrDragging(false);
-      }
+      const wasMovingOrDragging = movingOrDraggingRef.current || isMovingElements(board) || isDragging(board);
+      const isClick = clickStart !== null && !clickStart.moved && clickStart.id === event.pointerId &&
+        Math.hypot(event.clientX - clickStart.x, event.clientY - clickStart.y) <= 4;
+      clickStart = null;
+      const eventTarget = event.target as HTMLElement | null;
+      movingOrDraggingRef.current = false;
+      setMovingOrDragging(false);
       pointerUp(event);
+
+      if (
+        isClick && !wasMovingOrDragging && event.button === 0 &&
+        !eventTarget?.closest(`.${ATTACHED_ELEMENT_CLASS_NAME}, .popup-toolbar, .ai-input-bar, .ai-input-bar__container`)
+      ) {
+        const selection = getSelectedElements(board);
+        const source = selection.length === 1 ? getCanvasGenerationDetailsSource(selection[0]) : undefined;
+        if (source && !PlaitBoard.hasBeenTextEditing(board)) {
+          setImageDetailsRequest({
+            id: source.id, url: source.url,
+            taskId: source.generationTaskId,
+            sequence: ++imageDetailsSequence.current,
+          });
+        }
+      }
+
+      if (
+        isClick &&
+        !wasMovingOrDragging &&
+        event.button === 0 &&
+        centerImageOnClickEnabled &&
+        !eventTarget?.closest(
+          '.popup-toolbar, .ai-input-bar, .ai-input-bar__container, .ai-input-bar__settings-popup, button, input, textarea, select, [role="slider"], [data-slideshow-media-control]'
+        )
+      ) {
+        pendingFrame = schedulePopupToolbarFrame(() => {
+          pendingFrame = schedulePopupToolbarFrame(() => {
+            pendingFrame = null;
+            if (centerImageOnClickEnabledRef.current) {
+              centerSelectedElementsInViewport();
+            }
+          });
+        });
+      }
     };
 
     return () => {
       board.pointerUp = pointerUp;
       board.pointerMove = pointerMove;
+      container.removeEventListener('pointerdown', onPointerDown, true);
+      container.removeEventListener('pointermove', onPointerMove, true);
+      container.removeEventListener('pointercancel', onInterrupt, true);
+      container.removeEventListener('wheel', onInterrupt, true);
+      cancelCentering();
     };
-  }, [board]);
+  }, [
+    board,
+    centerImageOnClickEnabled,
+    centerSelectedElementsInViewport,
+  ]);
 
   return (
     <>
@@ -2465,6 +2674,18 @@ export const PopupToolbar = () => {
                 deleteFragment(board);
               }}
             />
+            {state.hasImageDetails && generationDetailsSource && (
+              <PopupImageDetailsButton
+                key={`generation-details-${generationDetailsSource.kind}-${generationDetailsSource.id}-${generationDetailsSource.url}-${generationDetailsSource.generationTaskId}`}
+                image={generationDetailsSource}
+                language={language}
+                selectionRect={selectionRect}
+                autoOpenRequest={imageDetailsRequest?.id === generationDetailsSource.id &&
+                  imageDetailsRequest.url === generationDetailsSource.url &&
+                  imageDetailsRequest.taskId === generationDetailsSource.generationTaskId
+                  ? imageDetailsRequest.sequence : 0}
+              />
+            )}
           </Stack.Row>
         </Island>
       )}

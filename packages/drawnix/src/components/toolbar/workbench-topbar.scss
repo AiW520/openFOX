@@ -27,7 +27,7 @@
     cursor: pointer;
     font-size: 17px;
     font-weight: 600;
-    letter-spacing: -0.5px;
+    letter-spacing: 0;
   }
   &__actions {
     display: flex;
@@ -118,7 +118,7 @@
   }
 }
 
-// New-version drawers start below its menu; legacy drawer styles remain unchanged.
+// Keep workbench drawers below the canvas controls.
 .drawnix--workbench .side-drawer {
   top: calc(56px + env(safe-area-inset-top, 0px));
 }

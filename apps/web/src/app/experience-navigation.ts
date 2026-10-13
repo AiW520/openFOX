@@ -15,9 +15,8 @@ export function createExperienceNavigation(storage?: LocationStorage | null) {
 
   return (current: URL, target: ExperienceVersion, active: ExperienceVersion): URL => {
     const url = new URL(current);
-    if (target === active) return url;
     const key = LOCATION_KEY_PREFIX + (current.searchParams.get('board') || 'default');
-    if (active === 'new') {
+    if (active === 'new' && (current.pathname.startsWith('/workflow') || current.searchParams.get('view') === 'canvas')) {
       const location = /^\/workflow\/canvas\/[^/?#]+$/.test(current.pathname)
         ? current.pathname
         : current.pathname.startsWith('/workflow') || current.searchParams.get('view') === 'canvas'
@@ -27,20 +26,16 @@ export function createExperienceNavigation(storage?: LocationStorage | null) {
       try { availableStorage()?.setItem(key, location); } catch { /* Use the in-memory location. */ }
     }
 
-    let location = '/';
+    let location = '/?view=canvas';
     if (target === 'new') {
       let saved = locations.get(key) || null;
       try { saved ||= availableStorage()?.getItem(key) || null; } catch { /* Storage may be blocked. */ }
-      if (validLocation(saved)) location = saved;
+      if (validLocation(saved) && saved !== '/') location = saved;
     }
     const destination = new URL(location, current.origin);
     url.pathname = destination.pathname;
     url.searchParams.set('experience', target);
-    if (destination.pathname.startsWith('/workflow') || destination.searchParams.get('view') === 'canvas') {
-      url.searchParams.set('view', 'canvas');
-    } else {
-      url.searchParams.delete('view');
-    }
+    url.searchParams.set('view', 'canvas');
     return url;
   };
 }

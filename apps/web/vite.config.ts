@@ -8,65 +8,6 @@ import crypto from 'crypto';
 import { createRequire } from 'module';
 import { visualizer } from 'rollup-plugin-visualizer';
 
-function workflowAssetsPlugin(): Plugin {
-  const sourceDir = path.resolve(
-    __dirname,
-    '../../packages/drawnix/src/workflow-mode/web/public'
-  );
-  const files = (dir: string, prefix = ''): string[] => {
-    if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-      const relative = path.join(prefix, entry.name);
-      return entry.isDirectory()
-        ? files(path.join(dir, entry.name), relative)
-        : [relative];
-    });
-  };
-  const pluginManifest = () => JSON.stringify(
-    files(path.join(sourceDir, 'plugins'))
-      .filter((file) => file.endsWith('.js') && !file.includes(path.sep))
-      .sort()
-      .map((file) => `/workflow-assets/plugins/${file}`)
-  );
-  return {
-    name: 'opentu-workflow-assets',
-    configureServer(server) {
-      server.middlewares.use('/workflow-assets', (req, res, next) => {
-        let relative: string;
-        try {
-          relative = decodeURIComponent(new URL(req.url || '/', 'http://localhost').pathname).replace(/^\//, '');
-        } catch {
-          res.statusCode = 400;
-          return res.end();
-        }
-        if (relative === 'plugins/index.json') {
-          res.setHeader('Cache-Control', 'no-cache');
-          res.setHeader('Content-Type', 'application/json');
-          return res.end(pluginManifest());
-        }
-        const file = path.resolve(sourceDir, relative);
-        const fromSource = path.relative(sourceDir, file);
-        if (fromSource === '..' || fromSource.startsWith(`..${path.sep}`) || path.isAbsolute(fromSource) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return next();
-        res.setHeader('Cache-Control', 'no-cache');
-        const types: Record<string, string> = {
-          '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
-          '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
-          '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css',
-        };
-        res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
-        res.end(fs.readFileSync(file));
-      });
-    },
-    generateBundle() {
-      for (const relative of files(sourceDir)) {
-        if (relative === path.join('plugins', 'index.json')) continue;
-        this.emitFile({ type: 'asset', fileName: `workflow-assets/${relative.replaceAll(path.sep, '/')}`, source: fs.readFileSync(path.join(sourceDir, relative)) });
-      }
-      this.emitFile({ type: 'asset', fileName: 'workflow-assets/plugins/index.json', source: pluginManifest() });
-    },
-  };
-}
-
 const require = createRequire(import.meta.url);
 const workspaceRoot = path.resolve(__dirname, '../..');
 const devCacheNamespace = crypto
@@ -77,6 +18,7 @@ const devCacheNamespace = crypto
 
 // Read version from public/version.json
 const versionPath = path.resolve(__dirname, 'public/version.json');
+const appChangelog = fs.readFileSync(path.resolve(__dirname, 'public/changelog.json'), 'utf8');
 let appVersion = '0.0.0';
 
 try {
@@ -183,6 +125,65 @@ const TUZI_SESSION_PROXY_TARGET =
   process.env.VITE_TUZI_SESSION_PROXY_TARGET || 'https://api.tu-zi.com';
 const LAYER_DECOMPOSER_PROXY_TARGET =
   process.env.VITE_LAYER_DECOMPOSER_PROXY_TARGET || 'http://127.0.0.1:8090';
+
+function workflowAssetsPlugin(): Plugin {
+  const sourceDir = path.resolve(
+    __dirname,
+    '../../packages/drawnix/src/workflow-mode/web/public'
+  );
+  const files = (dir: string, prefix = ''): string[] => {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const relative = path.join(prefix, entry.name);
+      return entry.isDirectory()
+        ? files(path.join(dir, entry.name), relative)
+        : [relative];
+    });
+  };
+  const pluginManifest = () => JSON.stringify(
+    files(path.join(sourceDir, 'plugins'))
+      .filter((file) => file.endsWith('.js') && !file.includes(path.sep))
+      .sort()
+      .map((file) => `/workflow-assets/plugins/${file}`)
+  );
+  return {
+    name: 'opentu-workflow-assets',
+    configureServer(server) {
+      server.middlewares.use('/workflow-assets', (req, res, next) => {
+        let relative: string;
+        try {
+          relative = decodeURIComponent(new URL(req.url || '/', 'http://localhost').pathname).replace(/^\//, '');
+        } catch {
+          res.statusCode = 400;
+          return res.end();
+        }
+        if (relative === 'plugins/index.json') {
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(pluginManifest());
+        }
+        const file = path.resolve(sourceDir, relative);
+        const fromSource = path.relative(sourceDir, file);
+        if (fromSource === '..' || fromSource.startsWith(`..${path.sep}`) || path.isAbsolute(fromSource) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return next();
+        res.setHeader('Cache-Control', 'no-cache');
+        const types: Record<string, string> = {
+          '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
+          '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css',
+        };
+        res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
+        res.end(fs.readFileSync(file));
+      });
+    },
+    generateBundle() {
+      for (const relative of files(sourceDir)) {
+        if (relative === path.join('plugins', 'index.json')) continue;
+        this.emitFile({ type: 'asset', fileName: `workflow-assets/${relative.replaceAll(path.sep, '/')}`, source: fs.readFileSync(path.join(sourceDir, relative)) });
+      }
+      this.emitFile({ type: 'asset', fileName: 'workflow-assets/plugins/index.json', source: pluginManifest() });
+    },
+  };
+}
 
 function createLayerDecomposerProxy(): Record<string, ProxyOptions> {
   return {
@@ -723,6 +724,9 @@ function collectIdlePrefetchGroupEntriesFromBundle(
 function resolveIdlePrefetchGroup(id: string): IdlePrefetchGroup | undefined {
   const normalizedId = normalizePathForChunking(id);
 
+  // Home and chat share model controls; keep them outside the lazy chat bundle.
+  if (normalizedId.includes('/components/chat-drawer/useChatDrawerGenerationControls')) return undefined;
+
   if (
     normalizedId.includes('/packages/drawnix/src/components/chat-drawer/') ||
     normalizedId.includes('/packages/drawnix/src/hooks/useChatHandler') ||
@@ -875,6 +879,7 @@ function isWebMainEntry(id: string): boolean {
   const normalizedId = normalizePathForChunking(id);
   return (
     normalizedId.endsWith('/apps/web/src/main.tsx') ||
+    normalizedId.endsWith('/apps/web/src/app/bootstrap.tsx') ||
     normalizedId.endsWith('/src/main.tsx')
   );
 }
@@ -912,15 +917,33 @@ function resolveManualChunk(
   }
 
   const group = resolveIdlePrefetchGroup(id);
+  // Shared modules imported by the bootstrap must stay in the startup graph.
+  // Otherwise Rollup can pull them into a lazy group (notably ai-chat), which
+  // makes the first page request the entire chat bundle even when chat is closed.
   if (
-    (group === undefined || group === 'tool-windows') &&
     context &&
     isStaticallyReachableFromWebMain(id, context.getModuleInfo)
   ) {
-    return 'startup-app';
+    const normalizedId = normalizePathForChunking(id);
+    if (normalizedId.includes('/node_modules/')) {
+      if (/\/node_modules\/(?:\.pnpm\/)?(?:react(?:-dom)?[@/]|scheduler[@/])/.test(normalizedId)) {
+        return 'startup-react';
+      }
+      if (normalizedId.includes('/@plait/') || normalizedId.includes('/@plait+')) {
+        return 'startup-canvas-vendor';
+      }
+      if (normalizedId.includes('/localforage/') || normalizedId.includes('/localforage@')) {
+        return 'startup-storage-vendor';
+      }
+    }
+    return undefined;
   }
 
-  return group;
+  // Let Rollup keep shared application/editor modules with their consumers.
+  // Forcing those modules into separate chunks creates static import cycles.
+  return group === 'ai-chat' || group === 'tool-windows' || group === 'editor-engines'
+    ? undefined
+    : group;
 }
 
 /**
@@ -1177,6 +1200,7 @@ export default defineConfig({
     } : {}),
     'process.env.NODE_ENV': JSON.stringify(reactNodeEnv),
     __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_CHANGELOG__: appChangelog,
     // Vue feature flags - @milkdown/crepe 内部使用了 Vue，需要定义这些编译时标志
     __VUE_OPTIONS_API__: JSON.stringify(false),
     __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
@@ -1195,6 +1219,13 @@ export default defineConfig({
         '/api/publisher/': publisherDevProxy,
         '/publisher': publisherDevProxy,
       } : {}),
+      '/__opentu_tuzi_proxy__/api/': {
+        target: 'https://api.tu-zi.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (requestPath: string) =>
+          requestPath.replace(/^\/__opentu_tuzi_proxy__\/api/, ''),
+      },
       '/__opentu_tuzi_session__/': {
         target: TUZI_SESSION_PROXY_TARGET,
         changeOrigin: true,
@@ -1206,7 +1237,7 @@ export default defineConfig({
       ...createTuziLocalGatewayProxy(),
     },
     headers: {
-      'Content-Security-Policy': `default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://umami.tu-zi.com https://wiki.tu-zi.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http: https: ws: wss: data:; frame-ancestors ${DEV_FRAME_ANCESTORS};`,
+      'Content-Security-Policy': `default-src 'self' https: data: blob:; script-src 'self' blob: 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://umami.tu-zi.com https://wiki.tu-zi.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http: https: ws: wss: data: blob:; frame-ancestors ${DEV_FRAME_ANCESTORS};`,
     },
   },
 
@@ -1215,14 +1246,14 @@ export default defineConfig({
     host: process.env.OPENTU_HOST || 'localhost',
     headers: {
       'Content-Security-Policy':
-        "upgrade-insecure-requests; default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://umami.tu-zi.com https://wiki.tu-zi.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: data:; frame-ancestors 'self' localhost:* 127.0.0.1:* https://api.tu-zi.com;",
+        "upgrade-insecure-requests; default-src 'self' https: data: blob:; script-src 'self' blob: 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://umami.tu-zi.com https://wiki.tu-zi.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: data: blob:; frame-ancestors 'self' localhost:* 127.0.0.1:* https://api.tu-zi.com;",
     },
   },
 
   plugins: [
-    workflowAssetsPlugin(),
     react(),
     nxViteTsPaths(),
+    workflowAssetsPlugin(),
     visualizer({
       open: false,
       filename: path.resolve(__dirname, '../../dist/apps/web/stats.html'),
@@ -1237,7 +1268,6 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: [
-      { find: /^@\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/drawnix/src/workflow-mode/web/src/$1') },
       ...diagramEngineAliases,
       {
         find: /^tdesign-react$/,
@@ -1245,6 +1275,10 @@ export default defineConfig({
           __dirname,
           '../../packages/drawnix/src/utils/tdesign.ts'
         ),
+      },
+      {
+        find: /^@\/(.*)$/,
+        replacement: path.resolve(__dirname, '../../packages/drawnix/src/workflow-mode/web/src/$1'),
       },
     ],
   },
@@ -1265,6 +1299,7 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
+        onlyExplicitManualChunks: true,
         manualChunks(id, context) {
           return resolveManualChunk(id, context);
         },

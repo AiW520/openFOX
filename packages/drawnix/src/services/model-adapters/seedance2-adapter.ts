@@ -13,6 +13,7 @@ import {
   downloadVideoContentToLocalUrl,
   extractInlineVideoUrl,
   shouldDownloadVideoContent,
+  VideoContentHttpError,
   isSeedanceAudioReference,
   isPublicHttpMediaUrl,
 } from '../video-binding-utils';
@@ -495,10 +496,12 @@ function isTransientPollError(error: unknown): boolean {
 }
 
 function isTransientContentError(error: unknown): boolean {
-  if (error instanceof Error && 'status' in error) {
-    const status = Number((error as { status?: unknown }).status);
+  if (error instanceof VideoContentHttpError) {
     return (
-      status === 408 || status === 425 || status === 429 || status >= 500
+      error.status === 408 ||
+      error.status === 425 ||
+      error.status === 429 ||
+      error.status >= 500
     );
   }
   return (
@@ -563,22 +566,10 @@ export async function submitSeedance2Request(
   const is25 = isSeedance25ModelId(model);
   const extra: Record<string, unknown> = {};
   if (is25) {
-    const draft = parseBoolean(
-      request.params?.draft,
-      false,
-      '样片模式',
-      modelLabel
-    );
     const outputFormat = request.params?.output_format || 'mp4';
-    const priority =
-      parseOptionalInteger(request.params?.priority, '优先级', modelLabel) ?? 0;
     if (outputFormat !== 'mp4' && outputFormat !== 'mov') {
       throw new Error(`${modelLabel} 输出格式必须为 mp4 或 mov`);
     }
-    if (priority < 0 || priority > 9)
-      throw new Error(`${modelLabel} 优先级必须为 0-9`);
-    if (draft && resolution !== '480p')
-      throw new Error(`${modelLabel} 样片模式仅支持 480p`);
     Object.assign(extra, {
       watermark: parseBoolean(
         request.params?.watermark,
@@ -587,8 +578,6 @@ export async function submitSeedance2Request(
         modelLabel
       ),
       output_format: outputFormat,
-      draft,
-      priority,
     });
   }
     const submitBody = {
@@ -711,6 +700,7 @@ export const seedance2VideoAdapter: VideoModelAdapter = {
                   modelId: status.model || model,
                   cacheKey: taskId,
                   signal: context.signal,
+                  fetcher: context.fetcher,
                 });
           onProgress?.(100, normalizedStatus);
           return {

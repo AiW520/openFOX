@@ -61,9 +61,26 @@ try {
     }
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(output, 'canvas-editor.png') });
+    await page.locator('.workflow-mobile-node-editor .ant-drawer-close').click();
+    const canvasPath = new URL(page.url()).pathname;
+    const nodeCount = await page.locator('.node-element').count();
+    await page.getByRole('button', { name: '自由画布', exact: true }).click();
+    await page.locator('.drawnix').waitFor();
+    await page.getByRole('button', { name: '工作流画布', exact: true }).click();
+    await page.locator('.workflow-canvas-page').waitFor();
+    assert.equal(new URL(page.url()).pathname, canvasPath);
+    assert.equal(await page.locator('.node-element').count(), nodeCount);
+    assert.equal(await page.locator('.new-experience').count(), 0);
+    await page.locator('.new-canvas-host__brand').click();
+    await page.getByRole('button', { name: '打开画布', exact: true }).waitFor();
+    await page.getByRole('button', { name: '自由画布', exact: true }).click();
+    await page.getByRole('textbox', { name: '创作描述' }).fill('Free canvas release validation');
+    await page.getByRole('button', { name: '打开画布', exact: true }).click();
+    await page.locator('.drawnix [contenteditable="true"], .drawnix textarea').filter({ hasText: 'Free canvas release validation' }).first().waitFor();
+    await page.screenshot({ path: path.join(output, 'free-canvas.png') });
     assert.deepEqual(errors, []);
     assert.deepEqual(failedAssets, []);
-    const report = { origin, health: true, realTrialLogin: true, sharedModels: session.models.length, mobileCanvas: true, paidGeneration: false, errors, failedAssets };
+    const report = { origin, health: true, realTrialLogin: true, sharedModels: session.models.length, mobileCanvas: true, freeCanvas: true, restoredWorkflow: true, paidGeneration: false, errors, failedAssets };
     await writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
     await context.close();

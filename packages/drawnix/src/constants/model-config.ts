@@ -17,6 +17,14 @@ import {
  */
 export type ModelType = 'image' | 'video' | 'text' | 'audio';
 
+export const FLUX_3_IMAGE_MODEL_ID = 'flux-3-image';
+export const FLUX_3_IMAGE_ASPECT_RATIOS = [
+  'auto', '21:9', '2:1', '16:9', '3:2', '7:5', '4:3', '5:4',
+  '1:1', '4:5', '3:4', '5:7', '2:3', '9:16', '1:2', '9:21',
+];
+export const FLUX_3_IMAGE_RESOLUTIONS = ['768sq', '1k', '1.5k', '2k', '4k'];
+export const TUZI_FLUX_3_IMAGE_RESOLUTIONS = ['1k', '2k', '4k'];
+
 /**
  * 模型厂商
  */
@@ -100,6 +108,7 @@ export interface ParamConfig {
   options?: Array<{ value: string; label: string }>;
   /** 二元枚举的展示控件 */
   control?: 'switch';
+  advanced?: boolean;
   /** 默认值 */
   defaultValue?: string;
   /** 数值最小值（number 类型时使用） */
@@ -387,6 +396,18 @@ export const IMAGE_MODEL_VIP_OPTIONS: ModelConfig[] = [
  */
 export const IMAGE_MODEL_MORE_OPTIONS: ModelConfig[] = [
   {
+    id: 'gemini-nano-banana-2.1',
+    label: 'gemini-nano-banana-2.1 (nano-banana-2.1)',
+    shortLabel: 'nano-banana-2.1',
+    shortCode: 'nb21',
+    description: 'Gemini Nano Banana 2.1 图片模型（1K/2K/4K）',
+    type: 'image',
+    vendor: ModelVendor.GEMINI,
+    supportsTools: false,
+    imageDefaults: IMAGE_DEFAULT_PARAMS,
+    tags: ['new', 'nano-banana-2.1'],
+  },
+  {
     id: 'gemini-3.1-flash-image-preview',
     label: 'gemini-3.1-flash-image-preview (nano-banana-2)',
     shortLabel: 'nano-banana-2',
@@ -524,6 +545,18 @@ export const IMAGE_MODEL_MORE_OPTIONS: ModelConfig[] = [
     vendor: ModelVendor.FLUX,
     supportsTools: false,
     imageDefaults: IMAGE_DEFAULT_PARAMS,
+  },
+  {
+    id: FLUX_3_IMAGE_MODEL_ID,
+    label: 'Flux 3 Image',
+    shortLabel: 'Flux 3 Image',
+    shortCode: 'f3i',
+    description: 'Flux 3 图片生成',
+    type: 'image',
+    vendor: ModelVendor.FLUX,
+    supportsTools: false,
+    imageDefaults: IMAGE_DEFAULT_PARAMS,
+    tags: ['new'],
   },
   {
     id: 'bfl-flux-2-max',
@@ -790,8 +823,8 @@ const SEEDANCE_DEFAULT_PARAMS: VideoModelDefaults = {
 };
 
 const SEEDANCE_25_DEFAULT_PARAMS: VideoModelDefaults = {
-  duration: '8',
-  size: '',
+  duration: '4',
+  size: '480p',
   aspectRatio: '16:9',
 };
 
@@ -1646,15 +1679,14 @@ export const ALL_MODELS: ModelConfig[] = [
   ...AUDIO_MODELS,
 ];
 
-export function getAllBuiltInModelConfigs(): ModelConfig[] {
-  return [
-    ...IMAGE_MODELS,
-    ...VIDEO_MODELS,
-    ...HIDDEN_VIDEO_MODELS,
-    ...BUILT_IN_TEXT_MODELS,
-    ...AUDIO_MODELS,
-  ];
-}
+const IMAGE_PARAMETER_MODEL_ALIASES: Readonly<Record<string, string>> = {
+  'nano-banana': 'gemini-2.5-flash-image',
+  'nano-banana-2': 'gemini-3.1-flash-image-preview',
+  'gemini-3.1-flash-image': 'gemini-3.1-flash-image-preview',
+  'gemini-3-pro-image': 'gemini-3-pro-image-preview',
+  'doubao-seedream-5-0-lite-260128': 'doubao-seedream-5-0-260128',
+  'seedream-5.0': 'doubao-seedream-5-0-260128',
+};
 
 let runtimeModels: ModelConfig[] = [];
 
@@ -1691,11 +1723,41 @@ export function getStaticModelsByType(type: ModelType): ModelConfig[] {
 }
 
 export function getStaticModelConfig(modelId: string): ModelConfig | undefined {
-  return (
+  const exactMatch =
     ALL_MODELS.find((model) => model.id === modelId) ||
     BUILT_IN_TEXT_MODELS.find((model) => model.id === modelId) ||
-    HIDDEN_VIDEO_MODELS.find((model) => model.id === modelId)
-  );
+    HIDDEN_VIDEO_MODELS.find((model) => model.id === modelId);
+  if (exactMatch) return exactMatch;
+
+  const sourceId = IMAGE_PARAMETER_MODEL_ALIASES[modelId.toLowerCase()];
+  const sourceModel = sourceId
+    ? IMAGE_MODELS.find((model) => model.id === sourceId)
+    : undefined;
+  // Reuse parameter metadata while preserving the API ID of discovered aliases.
+  return sourceModel
+    ? {
+        ...sourceModel,
+        id: modelId,
+        label: modelId,
+        shortLabel: modelId,
+        description:
+          modelId === 'seedream-5.0'
+            ? '即梦 Seedream 5.0 图片生成'
+            : sourceModel.description,
+        shortCode:
+          sourceModel.vendor === ModelVendor.DOUBAO
+            ? sourceModel.shortCode
+            : undefined,
+      }
+    : undefined;
+}
+
+/** Includes models hidden from default pickers, for explicit model contracts. */
+export function getAllBuiltInModelConfigs(): ModelConfig[] {
+  return mergeModels(ALL_MODELS, [
+    ...BUILT_IN_TEXT_MODELS,
+    ...HIDDEN_VIDEO_MODELS,
+  ]);
 }
 
 // ============================================
@@ -2038,9 +2100,24 @@ export const GPT_IMAGE_2_MODEL_IDS = [
 ];
 
 /** GPT Image 2.5 模型 ID（仅支持官方三种像素尺寸） */
-export const GPT_IMAGE_25_MODEL_IDS = [
-  'gpt-image-2.5-1k',
+export const GPT_IMAGE_25_MODEL_IDS = ['gpt-image-2.5-1k'];
+
+/** GPT Image 2.5 全部模型 ID */
+export const GPT_IMAGE_25_ALL_MODEL_IDS = [
+  ...GPT_IMAGE_25_EXTENDED_MODEL_IDS,
+  ...GPT_IMAGE_25_MODEL_IDS,
 ];
+
+export function isGPTImage25ModelId(modelId: string): boolean {
+  return /^(?:gpt-?)?image-?2\.5(?:[-.]|$)/i.test(modelId.trim());
+}
+
+export function isGPTImage2ModelId(modelId: string): boolean {
+  return (
+    /^(?:gpt-?)?image-?2(?:[-.]|$)/i.test(modelId.trim()) &&
+    !isGPTImage25ModelId(modelId)
+  );
+}
 
 /** 所有 GPT 图片模型 ID */
 const GPT_IMAGE_MODEL_IDS = [
@@ -2049,16 +2126,20 @@ const GPT_IMAGE_MODEL_IDS = [
 ];
 const MJ_IMAGE_MODEL_IDS = ['mj-imagine'];
 const GEMINI_31_FLASH_IMAGE_MODEL_IDS = ['gemini-3.1-flash-image-preview'];
+const GEMINI_NANO_BANANA_21_MODEL_ID = 'gemini-nano-banana-2.1';
 
 /** Gemini 图片模型 ID（支持完整尺寸） */
 const GEMINI_IMAGE_MODEL_IDS = IMAGE_MODELS.filter(
   (m) =>
+    m.id !== FLUX_3_IMAGE_MODEL_ID &&
     !GPT_IMAGE_MODEL_IDS.includes(m.id) &&
     !SEEDREAM_IMAGE_MODEL_IDS.includes(m.id) &&
     !MJ_IMAGE_MODEL_IDS.includes(m.id)
 ).map((m) => m.id);
 const GEMINI_IMAGE_MODEL_IDS_EXCLUDING_FLASH31 = GEMINI_IMAGE_MODEL_IDS.filter(
-  (id) => !GEMINI_31_FLASH_IMAGE_MODEL_IDS.includes(id)
+  (id) =>
+    !GEMINI_31_FLASH_IMAGE_MODEL_IDS.includes(id) &&
+    id !== GEMINI_NANO_BANANA_21_MODEL_ID
 );
 
 /** 所有图片模型 ID */
@@ -2069,6 +2150,44 @@ const ALL_IMAGE_MODEL_IDS = IMAGE_MODELS.map((m) => m.id);
  * 根据 video-model-config.ts 中各模型的实际参数配置
  */
 export const VIDEO_PARAMS: ParamConfig[] = [
+  ...([
+    {
+      id: 'negative_prompt',
+      label: '负向提示词',
+      valueType: 'string',
+    },
+    {
+      id: 'generate_audio',
+      label: '生成音频',
+      valueType: 'enum',
+      control: 'switch',
+      options: [{ value: 'true', label: '开启' }, { value: 'false', label: '关闭' }],
+    },
+    {
+      id: 'seed',
+      label: '随机种子',
+      valueType: 'number',
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+      step: 1,
+      integer: true,
+    },
+    {
+      id: 'person_generation',
+      label: '人物生成',
+      valueType: 'enum',
+      options: [
+        { value: 'dont_allow', label: '不允许' },
+        { value: 'allow_adult', label: '仅成年人' },
+        { value: 'allow_all', label: '允许所有' },
+      ],
+    },
+  ] as Omit<ParamConfig, 'compatibleModels' | 'modelType'>[]).map((param) => ({
+    ...param,
+    advanced: true,
+    compatibleModels: ['veo3.1'],
+    modelType: 'video' as const,
+  })),
   // Veo 系列时长参数（只有 8 秒，包括标清和 4K）
   {
     id: 'duration',
@@ -2207,6 +2326,32 @@ export const VIDEO_PARAMS: ParamConfig[] = [
     compatibleModels: SEEDANCE_2_MODEL_IDS,
     modelType: 'video',
   },
+  {
+    id: 'watermark',
+    label: '视频水印',
+    description: '视频水印',
+    valueType: 'enum',
+    options: [
+      { value: 'false', label: '关闭' },
+      { value: 'true', label: '开启' },
+    ],
+    defaultValue: 'false',
+    compatibleModels: [SEEDANCE_25_MODEL_ID],
+    modelType: 'video',
+  },
+  {
+    id: 'output_format',
+    label: '输出格式',
+    description: '输出格式',
+    valueType: 'enum',
+    options: [
+      { value: 'mp4', label: 'MP4' },
+      { value: 'mov', label: 'MOV' },
+    ],
+    defaultValue: 'mp4',
+    compatibleModels: [SEEDANCE_25_MODEL_ID],
+    modelType: 'video',
+  },
   // Seedance 分辨率参数（480p/720p/1080p）
   {
     id: 'size',
@@ -2228,7 +2373,7 @@ export const VIDEO_PARAMS: ParamConfig[] = [
     id: 'size',
     label: '视频分辨率',
     shortLabel: '分辨率',
-    description: 'Seedance 2.0 resolution',
+    description: 'Seedance resolution',
     valueType: 'enum',
     options: [
       { value: '1080p', label: '1080p' },
@@ -2236,7 +2381,7 @@ export const VIDEO_PARAMS: ParamConfig[] = [
       { value: '480p', label: '480p' },
     ],
     defaultValue: '720p',
-    compatibleModels: SEEDANCE_20_MODEL_IDS,
+    compatibleModels: SEEDANCE_2_MODEL_IDS,
     modelType: 'video',
   },
   {
@@ -2691,14 +2836,11 @@ export const AUDIO_PARAMS: ParamConfig[] = [
     description: 'Suno 音乐生成版本',
     valueType: 'enum',
     options: [
-      { value: 'chirp-v5-5', label: 'v5.5' },
-      { value: 'chirp-v5', label: 'v5.0' },
-      { value: 'chirp-v4-5', label: 'v4.5' },
-      { value: 'chirp-v4', label: 'v4.0' },
-      { value: 'chirp-v3-0', label: 'v3.0' },
-      { value: 'chirp-v3-5', label: 'v3.5' },
+      { value: 'chirp-v6', label: 'v6（默认，均衡）' },
+      { value: 'chirp-v6-wild', label: 'v6 Wild（风格更奔放）' },
+      { value: 'chirp-v6-mini', label: 'v6 Mini（更快）' },
     ],
-    defaultValue: 'chirp-v5-5',
+    defaultValue: 'chirp-v6',
     compatibleModels: ['suno_music'],
     compatibleTags: ['suno', 'audio', 'music'],
     modelType: 'audio',
@@ -2777,10 +2919,80 @@ export const AUDIO_PARAMS: ParamConfig[] = [
 /**
  * 图片参数配置
  * 根据 API 文档，size 使用宽高比格式（如 16x9），API 会自动转换为对应像素
- * 'auto' 表示不传尺寸参数，让模型自动决定
+ * 'auto' 由适配器按模型契约处理，让服务端决定图片比例
  */
 export const IMAGE_PARAMS: ParamConfig[] = [
+  ...(
+    [
+      {
+        id: 'output_format',
+        label: '输出格式',
+        description: 'PNG 无损；JPEG 文件较小、不支持透明；WebP 支持透明。',
+        valueType: 'enum',
+        options: [
+          { value: 'png', label: 'PNG' },
+          { value: 'jpeg', label: 'JPEG' },
+          { value: 'webp', label: 'WebP' },
+        ],
+      },
+      {
+        id: 'output_compression',
+        label: '压缩质量',
+        description: '仅 JPEG / WebP 生效，0–100；数值越高画质越好，文件通常越大。',
+        valueType: 'number',
+        min: 0,
+        max: 100,
+        step: 1,
+        integer: true,
+      },
+      {
+        id: 'moderation',
+        label: '内容审核',
+        description: '自动使用默认审核；低采用较宽松的过滤，仍需遵守平台规则。',
+        valueType: 'enum',
+        options: [
+          { value: 'auto', label: '自动' },
+          { value: 'low', label: '低' },
+        ],
+      },
+      {
+        id: 'user',
+        label: '用户标识',
+        description: '可选，用于识别终端用户和安全审计，不影响画面；请勿填写敏感信息。',
+        valueType: 'string',
+      },
+    ] as Omit<ParamConfig, 'compatibleModels' | 'modelType'>[]
+  ).map((param) => ({
+    ...param,
+    advanced: true,
+    compatibleModels: GPT_IMAGE_25_ALL_MODEL_IDS,
+    modelType: 'image' as const,
+  })),
   // GPT Image 2 模型尺寸
+  {
+    id: 'size',
+    label: '图片比例',
+    shortLabel: '比例',
+    valueType: 'enum',
+    options: FLUX_3_IMAGE_ASPECT_RATIOS.map((ratio) => ({
+      value: ratio.replace(':', 'x'),
+      label: ratio === 'auto' ? '自动' : ratio,
+    })),
+    defaultValue: 'auto',
+    compatibleModels: [FLUX_3_IMAGE_MODEL_ID],
+    modelType: 'image',
+  },
+  {
+    id: 'resolution',
+    label: '图片分辨率',
+    shortLabel: '分辨率',
+    description: 'Tuzi 输出档位，实际宽高随比例和上游渠道变化',
+    valueType: 'enum',
+    options: TUZI_FLUX_3_IMAGE_RESOLUTIONS.map((value) => ({ value, label: value.toUpperCase() })),
+    defaultValue: '1k',
+    compatibleModels: [FLUX_3_IMAGE_MODEL_ID],
+    modelType: 'image',
+  },
   {
     id: 'size',
     label: '图片尺寸',
@@ -2900,6 +3112,38 @@ export const IMAGE_PARAMS: ParamConfig[] = [
     ],
     modelType: 'image',
   },
+  {
+    id: 'background',
+    label: '图片背景',
+    shortLabel: '背景',
+    valueType: 'enum',
+    options: [
+      { value: 'auto', label: '自动' },
+      { value: 'transparent', label: '透明' },
+      { value: 'opaque', label: '不透明' },
+    ],
+    defaultValue: 'auto',
+    compatibleModels: [
+      ...GPT_IMAGE_25_EXTENDED_MODEL_IDS,
+      ...GPT_IMAGE_25_MODEL_IDS,
+    ],
+    modelType: 'image',
+  },
+  {
+    id: 'background',
+    label: '图片背景',
+    shortLabel: '背景',
+    valueType: 'enum',
+    options: [
+      { value: 'auto', label: '自动' },
+      { value: 'opaque', label: '不透明' },
+    ],
+    defaultValue: 'auto',
+    compatibleModels: GPT_IMAGE_2_MODEL_IDS.filter(
+      (modelId) => !GPT_IMAGE_25_EXTENDED_MODEL_IDS.includes(modelId)
+    ),
+    modelType: 'image',
+  },
   // Gemini 图片模型尺寸（支持完整尺寸）
   {
     id: 'size',
@@ -2924,7 +3168,7 @@ export const IMAGE_PARAMS: ParamConfig[] = [
     compatibleModels: GEMINI_IMAGE_MODEL_IDS_EXCLUDING_FLASH31,
     modelType: 'image',
   },
-  // Gemini 3.1 Flash 图片模型尺寸（支持扩展极端宽高比）
+  // Gemini 3.1 Flash / Nano Banana 2.1 图片模型尺寸（支持扩展极端宽高比）
   {
     id: 'size',
     label: '图片尺寸',
@@ -2949,7 +3193,10 @@ export const IMAGE_PARAMS: ParamConfig[] = [
       { value: '21x9', label: '21:9 超宽' },
     ],
     defaultValue: 'auto',
-    compatibleModels: GEMINI_31_FLASH_IMAGE_MODEL_IDS,
+    compatibleModels: [
+      ...GEMINI_31_FLASH_IMAGE_MODEL_IDS,
+      GEMINI_NANO_BANANA_21_MODEL_ID,
+    ],
     modelType: 'image',
   },
   // Seedream 图片模型尺寸（支持 8 种宽高比，label 显示具体像素）
@@ -3024,7 +3271,23 @@ export const IMAGE_PARAMS: ParamConfig[] = [
     compatibleModels: [
       'gemini-3.1-flash-image-preview',
       'gemini-3-pro-image-preview',
+      GEMINI_NANO_BANANA_21_MODEL_ID,
     ],
+    modelType: 'image',
+  },
+  {
+    id: 'thinking',
+    label: 'Thinking',
+    shortLabel: '思考',
+    description: '控制 Nano Banana 2.1 的思考级别',
+    valueType: 'enum',
+    options: [
+      { value: 'minimal', label: '最小' },
+      { value: 'medium', label: '标准' },
+      { value: 'high', label: '高' },
+    ],
+    defaultValue: 'medium',
+    compatibleModels: [GEMINI_NANO_BANANA_21_MODEL_ID],
     modelType: 'image',
   },
   {
@@ -3205,6 +3468,8 @@ export function getCompatibleParams(modelId: string): ParamConfig[] {
   const modelConfig = getModelConfig(modelId);
   if (!modelConfig) return [];
   const normalizedModelId = modelConfig.id.toLowerCase();
+  const parameterModelId =
+    IMAGE_PARAMETER_MODEL_ALIASES[normalizedModelId] || normalizedModelId;
 
   // 构建模型标签集合：显式标签 + 类型 + 厂商 + 基于 ID 的启发式
   const modelTags = new Set<string>();
@@ -3239,10 +3504,19 @@ export function getCompatibleParams(modelId: string): ParamConfig[] {
     // 检查是否在兼容 ID 列表（无标签限制时，空数组表示所有模型都兼容）
     const idMatched =
       param.compatibleModels.some(
-        (compatibleModel) =>
-          compatibleModel.toLowerCase() === normalizedModelId
+        (compatibleModel) => compatibleModel.toLowerCase() === parameterModelId
       ) ||
       (param.compatibleModels.length === 0 && !param.compatibleTags?.length);
+    if (
+      param.id === 'background' &&
+      (isGPTImage2ModelId(normalizedModelId) ||
+        isGPTImage25ModelId(normalizedModelId))
+    ) {
+      const supportsTransparent = param.options?.some(
+        (option) => option.value === 'transparent'
+      );
+      return supportsTransparent === isGPTImage25ModelId(normalizedModelId);
+    }
     return idMatched || tagMatched;
   });
 
@@ -3251,11 +3525,12 @@ export function getCompatibleParams(modelId: string): ParamConfig[] {
   }
 
   return compatibleParams.map((param) => {
+    if (param.id === 'size') return { ...param, defaultValue: '480p' };
     if (param.id === 'duration') {
       return {
         ...param,
         options: SEEDANCE_25_DURATION_OPTIONS,
-        defaultValue: '8',
+        defaultValue: '4',
       };
     }
     if (param.id === 'ratio') {

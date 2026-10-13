@@ -31,8 +31,8 @@ export const WorkbenchTopbar = React.memo(function WorkbenchTopbar({
       <button
         type="button"
         className="workbench-topbar__brand"
-        aria-label={zh ? '返回新版首页' : 'Back to new home'}
-        title={zh ? '返回新版首页' : 'Back to new home'}
+        aria-label={zh ? '返回工作台首页' : 'Back to workbench home'}
+        title={zh ? '返回工作台首页' : 'Back to workbench home'}
         onClick={onBackToNewHome}
       >
         <ArrowLeft size={14} aria-hidden="true" />
@@ -41,14 +41,14 @@ export const WorkbenchTopbar = React.memo(function WorkbenchTopbar({
       <div
         className="workbench-topbar__version"
         role="group"
-        aria-label={zh ? '切换版本' : 'Switch version'}
+        aria-label={zh ? '切换画布' : 'Switch canvas'}
         data-testid="workbench-version-switcher"
       >
-        <button type="button" aria-pressed="false" onClick={onSwitchToLegacy}>
-          {zh ? '旧版本' : 'Legacy'}
-        </button>
         <button type="button" aria-pressed="true">
-          {zh ? '新版本' : 'New'}
+          {zh ? '自由画布' : 'Free canvas'}
+        </button>
+        <button type="button" aria-pressed="false" onClick={onSwitchToLegacy}>
+          {zh ? '工作流画布' : 'Workflow canvas'}
         </button>
       </div>
       <nav
@@ -62,7 +62,7 @@ export const WorkbenchTopbar = React.memo(function WorkbenchTopbar({
           aria-label={zh ? '配置' : 'Settings'}
           onClick={() => {
             queueProviderSettingsNavigation({
-              action: 'tuzi-account',
+              action: 'select', profileId: 'legacy-default',
             });
             setAppState((prev) => ({ ...prev, openSettings: true }));
           }}

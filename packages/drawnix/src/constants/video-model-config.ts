@@ -343,9 +343,9 @@ export const VIDEO_MODEL_CONFIGS: Record<string, VideoModelConfig> = {
     provider: 'seedance',
     description: '音视频联合生成，支持 4-30 秒与 7 种画面比例',
     durationOptions: SEEDANCE_25_DURATION_OPTIONS,
-    defaultDuration: '8',
-    sizeOptions: [],
-    defaultSize: '',
+    defaultDuration: '4',
+    sizeOptions: SEEDANCE_2_SIZE_OPTIONS,
+    defaultSize: '480p',
     imageUpload: {
       maxCount: 30,
       mode: 'reference',
@@ -716,9 +716,9 @@ function getConfigOrDefault(model?: string | null): VideoModelConfig {
       sizeOptions: MINIMAX_H3_SIZE_OPTIONS,
       defaultSize: '768P',
       imageUpload: {
-        maxCount: 1,
-        mode: 'reference',
-        labels: ['参考图'],
+        maxCount: 2,
+        mode: 'frames',
+        labels: ['首帧', '尾帧'],
       },
     };
   }

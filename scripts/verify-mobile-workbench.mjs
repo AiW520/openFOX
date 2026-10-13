@@ -140,7 +140,7 @@ try {
             await page.locator('.workflow-canvas-page').waitFor();
             const expectedCanvasPath = new URL(page.url()).pathname;
             const expectedNodes = await page.locator('.node-element').count();
-            await page.getByRole('button', { name: '旧版本', exact: true }).click();
+            await page.getByRole('button', { name: '自由画布', exact: true }).click();
             await page.locator('.drawnix').waitFor();
             await shot('legacy');
             const canvasPath = new URL(await page.evaluate(() => {
@@ -150,22 +150,37 @@ try {
             assert.equal(canvasPath, expectedCanvasPath);
             for (let i = 0; i < 2; i++) {
                 if (i === 1) await page.reload({ waitUntil: 'domcontentloaded' });
-                await page.getByRole('button', { name: '新版本', exact: true }).click();
+                await page.getByRole('button', { name: '工作流画布', exact: true }).click();
                 await page.locator('.workflow-canvas-page').waitFor();
                 assert.equal(new URL(page.url()).pathname, canvasPath, 'version switch restored a different canvas');
                 assert.equal(await page.locator('.node-element').count(), expectedNodes, 'version switch lost canvas nodes');
                 assert.equal(await page.locator('.new-experience').count(), 0, 'version switch returned to home');
-                await page.getByRole('button', { name: '旧版本', exact: true }).click();
+                await page.getByRole('button', { name: '自由画布', exact: true }).click();
                 await page.locator('.drawnix').waitFor();
             }
-            await page.getByRole('button', { name: '新版本', exact: true }).click();
+            await page.getByRole('button', { name: '工作流画布', exact: true }).click();
             await page.locator('.workflow-canvas-page').waitFor();
             await page.locator('.new-canvas-host__brand').click();
             await page.getByRole('button', { name: '打开画布', exact: true }).waitFor();
-            await page.getByRole('button', { name: '旧版本', exact: true }).click();
+            await page.getByRole('button', { name: '自由画布', exact: true }).click();
+            assert.equal(await page.locator('.drawnix').count(), 0, 'selecting a canvas on home should not open it yet');
+            await page.getByRole('textbox', { name: '创作描述' }).fill('Free canvas QA draft');
+            await page.locator('.new-experience .count-dropdown__trigger').click();
+            await page.locator('.count-dropdown__item').filter({ hasText: /^2个$/ }).click();
+            await page.getByRole('button', { name: '打开画布', exact: true }).click();
             await page.locator('.drawnix').waitFor();
-            await page.getByRole('button', { name: '新版本', exact: true }).click();
-            await page.getByRole('button', { name: '打开画布', exact: true }).waitFor();
+            await page.locator('.drawnix [contenteditable="true"], .drawnix textarea').filter({ hasText: 'Free canvas QA draft' }).first().waitFor();
+            assert((await page.locator('.drawnix .count-dropdown__label').last().textContent()).includes('2'), 'free canvas lost generation count');
+            await shot('free-draft');
+            await page.getByRole('button', { name: '工作流画布', exact: true }).click();
+            await page.locator('.workflow-canvas-page').waitFor();
+            assert.equal(new URL(page.url()).pathname, canvasPath);
+            await page.evaluate(() => localStorage.setItem('opentu_experience_version_v1', 'legacy'));
+            const deepLink = new URL(page.url());
+            deepLink.searchParams.delete('experience');
+            await page.goto(deepLink.href, { waitUntil: 'domcontentloaded' });
+            await page.locator('.workflow-canvas-page').waitFor();
+            assert.equal(new URL(page.url()).pathname, canvasPath, 'workflow deep link must override the saved free-canvas preference');
             assert.deepEqual(errors, []);
             reports.push({ viewport, mobile, errors, passed: true });
         } catch (error) {

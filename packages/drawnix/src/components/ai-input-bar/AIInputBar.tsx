@@ -31,6 +31,7 @@ import {
   Maximize2,
   Minimize2,
   PinOff,
+  Settings2,
   Send,
   Unlink,
   X,
@@ -38,6 +39,7 @@ import {
 import {
   Dropdown,
   MessagePlugin,
+  Popup,
   Switch,
   type DropdownOption,
 } from 'tdesign-react';
@@ -151,6 +153,7 @@ import {
   type WorkflowStepOptions,
 } from './workflow-converter';
 import {
+  clampBoundTaskbarPosition,
   getBoundTaskbarHeight,
   getBoundTaskbarWidth,
 } from './bound-taskbar-layout';
@@ -212,6 +215,11 @@ import {
   type ImageGenerationAnchorPresentationState,
 } from '../../utils/image-generation-anchor-state';
 import { WorkZoneTransforms } from '../../plugins/with-workzone';
+import {
+  getRetainedTaskCardRectangles,
+  occupiesGenerationPlacement,
+  placeBelowRetainedTaskCards,
+} from '../../utils/generation-task-placement';
 import { useWorkflowSubmission } from '../../hooks/useWorkflowSubmission';
 import { isFrameElement } from '../../types/frame.types';
 import { matchFrameSizeForModel } from '../../utils/frame-size-matcher';
@@ -286,6 +294,10 @@ import {
   type BoundTargetTaskbarDraftEntry,
   type BoundImageTargetMode,
 } from './target-bound-taskbar-state';
+import {
+  persistCenterImageOnClickEnabled,
+  readCenterImageOnClickEnabled,
+} from './canvas-view-settings';
 import {
   appendCanvasAssociationRef,
   areCanvasAssociationRefsEqual,
@@ -825,7 +837,7 @@ function resizeAIInputTextarea(
   if (resizeMode === 'long-text') {
     const maxHeight = getAIInputLongTextMaxHeight();
     textarea.style.height = `${maxHeight}px`;
-    textarea.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
+    textarea.style.overflowY = 'auto';
     return;
   }
 
@@ -834,7 +846,7 @@ function resizeAIInputTextarea(
   const nextHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
 
   textarea.style.height = `${nextHeight}px`;
-  textarea.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
+  textarea.style.overflowY = 'auto';
 }
 
 function resolveGenerationTypeForModelSelection(
@@ -1117,26 +1129,35 @@ function selectedContentFromBoundTarget(
       : null;
   }
 
-  if (!target.url || !['image', 'video'].includes(target.type)) return null;
+  if (!target.url || !['image', 'video', 'audio'].includes(target.type)) return null;
 
   const isVideo = target.type === 'video';
+  const isAudio = target.type === 'audio';
 
   return {
-    type: target.type as 'image' | 'video',
+    type: target.type as 'image' | 'video' | 'audio',
     url: target.url,
     name:
       language === 'zh'
         ? referenceOnly
-          ? isVideo
+          ? isAudio
+            ? '参考音频'
+            : isVideo
             ? '参考视频'
             : '参考图'
+          : isAudio
+          ? '目标音频'
           : isVideo
           ? '目标视频'
           : '目标图片'
         : referenceOnly
-        ? isVideo
+        ? isAudio
+          ? 'Reference audio'
+          : isVideo
           ? 'Reference video'
           : 'Reference image'
+        : isAudio
+        ? 'Target audio'
         : isVideo
         ? 'Target video'
         : 'Target image',
@@ -1959,6 +1980,8 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
     const [boundTargetFollowEnabled, setBoundTargetFollowEnabled] = useState(
       () => readBoundTargetFollowEnabled()
     );
+    const [centerImageOnClickEnabled, setCenterImageOnClickEnabled] =
+      useState(() => readCenterImageOnClickEnabled());
     const [boundTargetError, setBoundTargetError] = useState<string | null>(
       null
     );
@@ -4374,6 +4397,8 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
               ? `无法读取当前${
                   target.type === 'text'
                     ? '文本'
+                    : target.type === 'audio'
+                    ? '音频'
                     : target.type === 'video'
                     ? '视频'
                     : '图片'
@@ -4381,6 +4406,8 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
               : `Failed to read the follow setting for this ${
                   target.type === 'text'
                     ? 'text'
+                    : target.type === 'audio'
+                    ? 'audio'
                     : target.type === 'video'
                     ? 'video'
                     : 'image'
@@ -4431,6 +4458,10 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
     const handleBoundTargetFollowChange = useCallback((enabled: boolean) => {
       setBoundTargetFollowEnabled(persistBoundTargetFollowEnabled(enabled));
       setBoundInputLayoutTick((tick) => tick + 1);
+    }, []);
+
+    const handleCenterImageOnClickChange = useCallback((enabled: boolean) => {
+      setCenterImageOnClickEnabled(persistCenterImageOnClickEnabled(enabled));
     }, []);
 
     const handleBoundInputViewportChange = useCallback(() => {
@@ -5398,16 +5429,26 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
             initialRoute.baseUrl && initialRoute.apiKey
           );
           const routePreparation = await prepareTuziManagedRoute(initialRoute);
-          if (!hasRouteCredentials || routePreparation.managedRoute) {
+          if (
+            !hasRouteCredentials ||
+            routePreparation.context ||
+            routePreparation.managedRoute ||
+            routePreparation.requiresSetup
+          ) {
             if (abortIfSubmittedBoardChanged('tuzi_context')) return;
             hasRouteCredentials =
+              !routePreparation.requiresSetup &&
               hasInvocationRouteCredentials(
                 currentRouteType,
                 effectiveSelectedModelRef || effectiveSelectedModel
               ) &&
               (!routePreparation.managedRoute ||
                 routePreparation.context?.status === 'ready');
-            if (!hasRouteCredentials && routePreparation.context && !override) {
+            if (
+              !hasRouteCredentials &&
+              (routePreparation.context || routePreparation.requiresSetup) &&
+              !override
+            ) {
               const delegated =
                 await submitGenerationWithCredentialGateRef.current({
                   prompt: effectivePrompt,
@@ -5430,6 +5471,12 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
                 setIsSubmitting(false);
                 return;
               }
+            }
+            if (routePreparation.requiresSetup) {
+              MessagePlugin.error('请先完成 Tuzi 账户关联和分组配置，再重试');
+              submitLockRef.current = false;
+              setIsSubmitting(false);
+              return;
             }
             if (!hasRouteCredentials && !routePreparation.context) {
               const newApiKey = await promptForApiKey();
@@ -5762,7 +5809,7 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
             const originY = board.viewport?.origination?.[1] || 0;
 
             const allElements = board.children.filter(
-              (el: { type?: string }) => el.type !== 'workzone'
+              occupiesGenerationPlacement
             );
 
             const viewportCenterX =
@@ -5940,6 +5987,7 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
                       frameRect: shouldCreateIndependentBatchAnchors
                         ? targetFrameRect
                         : undefined,
+                      extraOccupiedRects: getRetainedTaskCardRectangles(board),
                     }
                   )
                 : null;
@@ -6026,6 +6074,18 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
                 }, 100);
               }
             } else {
+              const retainedTaskPlacement = placeBelowRetainedTaskCards(
+                board,
+                [workzoneX, workzoneY],
+                { width: WORKZONE_WIDTH, height: WORKZONE_HEIGHT },
+                GAP,
+                zoom
+              );
+              if (!targetFrameId) {
+                expectedInsertY += retainedTaskPlacement[1] - workzoneY;
+              }
+              [workzoneX, workzoneY] = retainedTaskPlacement;
+
               const workzoneElement = WorkZoneTransforms.insertWorkZone(board, {
                 workflow: workflowMessageData,
                 position: [workzoneX, workzoneY],
@@ -7720,14 +7780,9 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
       followedBoundImageTarget,
       boundTargetFollowEnabled
     );
-    const hasPositionedBoundImageTarget = Boolean(positionedBoundImageTarget);
     useEffect(() => {
       const container = containerRef.current;
-      if (
-        !hasPositionedBoundImageTarget ||
-        !container ||
-        typeof ResizeObserver === 'undefined'
-      ) {
+      if (!container || typeof ResizeObserver === 'undefined') {
         return;
       }
 
@@ -7747,7 +7802,18 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
           window.cancelAnimationFrame(layoutFrameId);
         }
       };
-    }, [hasPositionedBoundImageTarget]);
+    }, []);
+    const inputViewport = useMemo(() => {
+      const viewport = window.visualViewport;
+      return {
+        left: viewport?.offsetLeft ?? 0,
+        top: viewport?.offsetTop ?? 0,
+        width: viewport?.width ?? window.innerWidth,
+        height: viewport?.height ?? window.innerHeight,
+      };
+      // Viewport events from SelectionWatcher invalidate these measurements.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [boundInputLayoutTick]);
     const boundInputPosition = useMemo(() => {
       if (!positionedBoundImageTarget) return null;
 
@@ -7779,26 +7845,38 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
       const viewportMargin = 12;
       const barWidth = getBoundTaskbarWidth(
         containerRef.current?.getBoundingClientRect().width,
-        window.innerWidth
+        inputViewport.width
       );
       const left = Math.min(
-        Math.max(targetCenterX, viewportMargin + barWidth / 2),
-        window.innerWidth - viewportMargin - barWidth / 2
+        Math.max(
+          targetCenterX,
+          inputViewport.left + viewportMargin + barWidth / 2
+        ),
+        inputViewport.left + inputViewport.width - viewportMargin - barWidth / 2
       );
       const estimatedHeight = getBoundTaskbarHeight(
         containerRef.current?.getBoundingClientRect().height,
         shouldKeepExpanded
       );
-      const belowTop = targetBottom + 8;
-      const top =
-        belowTop + estimatedHeight <= window.innerHeight - viewportMargin
-          ? belowTop
-          : Math.max(viewportMargin, targetTop - estimatedHeight - 8);
+      const top = clampBoundTaskbarPosition(
+        targetTop,
+        targetBottom,
+        estimatedHeight,
+        inputViewport.height,
+        viewportMargin,
+        8,
+        inputViewport.top
+      );
 
       return { left, top };
       // ResizeObserver increments the tick to invalidate these DOM measurements.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [boundInputLayoutTick, positionedBoundImageTarget, shouldKeepExpanded]);
+    }, [
+      boundInputLayoutTick,
+      inputViewport,
+      positionedBoundImageTarget,
+      shouldKeepExpanded,
+    ]);
 
     const followControlsTarget =
       followedBoundImageTarget &&
@@ -7815,6 +7893,13 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
     ]);
     const boundTargetFollowCopy = useMemo(() => {
       if (language === 'zh') {
+        if (followControlsTargetType === 'audio') {
+          return {
+            once: '本次只作参考音频',
+            always: '对此音频始终只作参考音频',
+            stop: '关闭任务栏跟随',
+          };
+        }
         if (followControlsTargetType === 'text') {
           return {
             once: '本次只作上下文',
@@ -7836,6 +7921,13 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
         };
       }
 
+      if (followControlsTargetType === 'audio') {
+        return {
+          once: 'Use this audio as a reference this time',
+          always: 'Always use this audio as reference',
+          stop: 'Stop following this audio',
+        };
+      }
       if (followControlsTargetType === 'text') {
         return {
           once: 'Use as context this time',
@@ -7872,103 +7964,124 @@ export const AIInputBar: React.FC<AIInputBarProps> = React.memo(
       [boundTargetFollowCopy]
     );
     const boundTargetFollowActions = followControlsTarget ? (
-      <div
-        className="ai-input-bar__bound-dismiss-actions"
-        data-testid="ai-bound-follow-actions"
-      >
-        <HoverTip
-          content={
-            boundTargetFollowEnabled
-              ? language === 'zh'
-                ? '任务栏跟随默认开启'
-                : 'Taskbar follow defaults to on'
-              : language === 'zh'
-              ? '任务栏跟随默认关闭'
-              : 'Taskbar follow defaults to off'
-          }
-          showArrow={false}
-        >
-          <span
-            className="ai-input-bar__bound-follow-toggle"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
+      <Popup
+        trigger="click"
+        placement="top-right"
+        overlayClassName="ai-input-bar__settings-popup"
+        content={
+          <div
+            className="ai-input-bar__settings-panel"
+            onMouseDown={(event) => event.stopPropagation()}
           >
-            <Switch
-              size="small"
-              value={boundTargetFollowEnabled}
-              label={
-                <span className="ai-input-bar__bound-follow-label">
-                  {language === 'zh' ? '任务栏跟随' : 'Taskbar follow'}
-                </span>
-              }
-              onChange={(checked) =>
-                handleBoundTargetFollowChange(checked as boolean)
-              }
-            />
-          </span>
-        </HoverTip>
-        {boundTargetFollowEnabled ? (
-          <div className="ai-input-bar__bound-dismiss-secondary-actions">
-            <HoverTip content={boundTargetFollowCopy.stop} showArrow={false}>
-              <button
-                type="button"
-                className="ai-input-bar__bound-dismiss-btn"
-                aria-label={boundTargetFollowCopy.once}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={() => handleDismissBoundTarget('once')}
-                disabled={isSubmitting}
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </HoverTip>
-            <Dropdown
-              options={boundTargetDismissOptions}
-              trigger="hover"
-              placement="top-right"
-              minColumnWidth={190}
-              popupProps={{
-                visible: isBoundTargetDismissMenuOpen,
-                onVisibleChange: setIsBoundTargetDismissMenuOpen,
-              }}
-              onClick={(data) =>
-                handleDismissBoundTarget(data.value as BoundTargetDismissMode)
-              }
-            >
-              <button
-                type="button"
-                className="ai-input-bar__bound-dismiss-menu-btn"
-                aria-label={
-                  language === 'zh' ? '选择跟随方式' : 'Choose follow behavior'
+            <div className="ai-input-bar__settings-title">
+              {language === 'zh' ? '任务栏设置' : 'Taskbar settings'}
+            </div>
+            <div className="ai-input-bar__settings-row">
+              <span>
+                {language === 'zh' ? '任务栏跟随' : 'Taskbar follow'}
+              </span>
+              <Switch
+                size="small"
+                value={boundTargetFollowEnabled}
+                aria-label={language === 'zh' ? '任务栏跟随' : 'Taskbar follow'}
+                onChange={(checked) =>
+                  handleBoundTargetFollowChange(checked as boolean)
                 }
-                aria-haspopup="menu"
-                aria-expanded={isBoundTargetDismissMenuOpen}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={() => setIsBoundTargetDismissMenuOpen(true)}
-                disabled={isSubmitting}
-              >
-                <ChevronDown size={14} aria-hidden="true" />
-              </button>
-            </Dropdown>
+              />
+            </div>
+            <div className="ai-input-bar__settings-row">
+              <span>
+                {language === 'zh'
+                  ? '点击目标后自动居中'
+                  : 'Center target after clicking'}
+              </span>
+              <Switch
+                size="small"
+                value={centerImageOnClickEnabled}
+                aria-label={
+                  language === 'zh'
+                    ? '点击目标后自动居中'
+                    : 'Center target after clicking'
+                }
+                onChange={(checked) =>
+                  handleCenterImageOnClickChange(checked as boolean)
+                }
+              />
+            </div>
+            {boundTargetFollowEnabled ? (
+              <div className="ai-input-bar__settings-actions">
+                <button
+                  type="button"
+                  className="ai-input-bar__bound-dismiss-btn"
+                  aria-label={boundTargetFollowCopy.once}
+                  onClick={() => handleDismissBoundTarget('once')}
+                  disabled={isSubmitting}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+                <Dropdown
+                  options={boundTargetDismissOptions}
+                  trigger="hover"
+                  placement="top-right"
+                  minColumnWidth={190}
+                  popupProps={{
+                    visible: isBoundTargetDismissMenuOpen,
+                    onVisibleChange: setIsBoundTargetDismissMenuOpen,
+                  }}
+                  onClick={(data) =>
+                    handleDismissBoundTarget(data.value as BoundTargetDismissMode)
+                  }
+                >
+                  <button
+                    type="button"
+                    className="ai-input-bar__bound-dismiss-menu-btn"
+                    aria-label={
+                      language === 'zh' ? '选择跟随方式' : 'Choose follow behavior'
+                    }
+                    aria-haspopup="menu"
+                    aria-expanded={isBoundTargetDismissMenuOpen}
+                    onClick={() => setIsBoundTargetDismissMenuOpen(true)}
+                    disabled={isSubmitting}
+                  >
+                    <ChevronDown size={14} aria-hidden="true" />
+                  </button>
+                </Dropdown>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+        }
+      >
+        <button
+          type="button"
+          className="ai-input-bar__settings-btn"
+          aria-label={language === 'zh' ? '设置' : 'Settings'}
+          data-testid="ai-input-settings"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <Settings2 size={18} aria-hidden="true" />
+        </button>
+      </Popup>
     ) : null;
 
-    const boundInputStyle = boundInputPosition
-      ? ({
-          left: `${boundInputPosition.left}px`,
-          top: `${boundInputPosition.top}px`,
-          bottom: 'auto',
-        } as React.CSSProperties)
-      : undefined;
+    const boundInputStyle = {
+      '--ai-input-viewport-width': `${inputViewport.width}px`,
+      '--ai-input-viewport-height': `${inputViewport.height}px`,
+      '--ai-input-viewport-center': `${inputViewport.left + inputViewport.width / 2}px`,
+      '--ai-input-viewport-bottom-offset': `${Math.max(
+        0,
+        window.innerHeight - inputViewport.top - inputViewport.height
+      )}px`,
+      ...(boundInputPosition
+        ? {
+            left: `${boundInputPosition.left}px`,
+            top: `${boundInputPosition.top}px`,
+            bottom: 'auto',
+          }
+        : {}),
+    } as React.CSSProperties;
 
     const selectedContentPreview =
       displayContent.length > 0 ? (

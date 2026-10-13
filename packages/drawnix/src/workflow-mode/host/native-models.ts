@@ -81,6 +81,9 @@ export async function readNativeProviderCredentials(): Promise<{
   const { isTuziEmbeddedMode } = await import(
     '../../services/tuzi-embedded-config'
   );
+  const { isCurrentTuziEndpoint, isVerifiedTuziProvider } = await import(
+    '../../services/tuzi-provider-reuse-state'
+  );
   const { getTuziSystemUserId } = await import(
     '../../services/tuzi-token-auth'
   );
@@ -89,7 +92,11 @@ export async function readNativeProviderCredentials(): Promise<{
       if (!isTuziEmbeddedMode()) return true;
       if (profile.id.startsWith('tuzi-managed-'))
         return Boolean(getTuziSystemUserId());
-      return !profile.id.startsWith('tuzi-token-');
+      return (
+        !profile.id.startsWith('tuzi-token-') ||
+        !isCurrentTuziEndpoint(profile.baseUrl) ||
+        isVerifiedTuziProvider(profile)
+      );
     }
   );
   const preferredProfileId = settings.resolveInvocationRoute('image').profileId;
@@ -325,7 +332,8 @@ export async function readNativeModels(): Promise<ModelDefaults> {
         model.parameters,
         model.capability,
         adapter?.id,
-        model.requestSchema
+        model.requestSchema,
+        context.binding?.metadata?.video
       );
       model.adapterId = adapter?.id;
       if (!adapter)

@@ -15,6 +15,7 @@ import { ToolButton } from '../tool-button';
 import { useTaskQueue } from '../../hooks/useTaskQueue';
 import type { Task } from '../../types/task.types';
 import { FeedbackButton } from '../feedback-button/feedback-button';
+import { CanvasResourcesButton } from './canvas-resources-button';
 import { FolderIcon, ToolboxIcon, TaskIcon, TrashIcon } from '../icons';
 import './bottom-actions-section.scss';
 
@@ -70,6 +71,7 @@ export interface BottomActionsSectionProps {
   showLocalDataClear?: boolean;
   /** Render the same task action in the compact topbar, keeping queue state here. */
   taskButtonContainer?: HTMLElement | null;
+  showResources?: boolean;
 }
 
 export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
@@ -81,6 +83,7 @@ export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
   onTaskPanelToggle,
   showLocalDataClear = false,
   taskButtonContainer,
+  showResources = true,
 }) => {
   const { language } = useI18n();
   const { activeTasks, completedTasks, failedTasks } = useTaskQueue();
@@ -165,6 +168,7 @@ export const BottomActionsSection: React.FC<BottomActionsSectionProps> = ({
 
   return (
     <div className="bottom-actions-section">
+      {showResources && <CanvasResourcesButton />}
       {/* 反馈按钮 */}
       <FeedbackButton />
 

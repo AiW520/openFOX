@@ -638,6 +638,7 @@ class GenerationAPIService {
       assertStoredTaskInvocationRouteAvailable(taskId, 'image');
       const result = await Promise.race([
         asyncImageAPIService.resumePolling(remoteId, {
+          assertAvailable,
           interval: 5000,
           routeModel,
           signal: abortController.signal,
@@ -942,6 +943,7 @@ class GenerationAPIService {
       // Resume polling
       const pollingPromise = videoAPIService.resumePolling(remoteId, {
         interval: 5000,
+        assertAvailable,
         routeModel,
         params: taskQueueService.getTask(taskId)?.params.params as
           | Record<string, unknown>
@@ -1034,6 +1036,7 @@ class GenerationAPIService {
 
       const pollingPromise = audioAPIService.resumePolling(remoteId, {
         interval: 5000,
+        assertAvailable,
         routeModel,
         onProgress: (progress) => {
           taskQueueService.updateTaskProgress(taskId, progress);

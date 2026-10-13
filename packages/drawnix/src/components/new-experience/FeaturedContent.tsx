@@ -32,10 +32,10 @@ const FEATURED_ITEMS: FeaturedItem[] = [
   {
     id: 'canvas-update',
     kicker: '产品指南',
-    title: '新版画布更新',
+    title: '创作画布更新',
     summary: '把灵感、模型和结果放在同一张可编辑的创作空间。',
     detail:
-      '在首页写下创作描述，选好模型、参数和数量，按 Enter 就能把这些设置带进新版画布。进入画布后确认再生成，方便先整理想法，再开始创作。',
+      '把新的创意带进画布，继续完善你的创作。',
     art: 'featured-content__art--canvas',
     media: {
       type: 'image',

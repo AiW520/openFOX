@@ -7,12 +7,71 @@ import {
   describeNativeModel,
   PARAMETER_CONSUMERS,
   applyNativeAdapterContract,
+  extendAdapterParameters,
 } from './native-parameters';
 import { buildNativeModelCoverage } from './native-model-coverage';
-import { validateNativeReferences } from '../shared/native-parameters';
+import { getVideoModelConfig } from '../../constants/video-model-config';
+import {
+  resolveNativeParameters,
+  validateNativeReferences,
+} from '../shared/native-parameters';
 
 describe('complete native catalog parameter coverage', () => {
-  it('aligns H3 reference inputs with the request limits without discarding images', () => {
+  it.each(['doubao-seedream-5-0-lite-260128', 'seedream-5.0'])(
+    'enables %s size and quality controls with their final consumer', (modelId) => {
+    const parameters = applyNativeAdapterContract(
+      describeNativeModel(modelId, 'image').parameters!,
+      'image',
+      'seedream-image-adapter'
+    );
+    expect(parameters.find(param => param.id === 'seedream_quality')).toMatchObject({
+      defaultValue: '2k',
+      options: [{ value: '2k', label: '2K' }, { value: '3k', label: '3K' }],
+    });
+    expect(parameters.find(param => param.id === 'seedream_quality')?.disabledReason).toBeUndefined();
+    expect(resolveNativeParameters(parameters, { size: '16x9', seedream_quality: '3k' }))
+      .toMatchObject({ size: '16x9', seedream_quality: '3k' });
+    expect(() => resolveNativeParameters(parameters, { seedream_quality: '1k' })).toThrow();
+    expect(parameters.map(param => param.id)).not.toContain('watermark');
+  });
+  it('enables Veo controls without a metadata declaration and preserves channel limits', () => {
+    const parameters = describeNativeModel('veo3.1', 'video').parameters!;
+    const unknown = applyNativeAdapterContract(parameters, 'video', 'gemini-video-adapter');
+    expect(resolveNativeParameters(unknown, {
+      seed: 0, generate_audio: false, person_generation: 'allow_adult',
+    })).toMatchObject({ seed: 0, generate_audio: false, person_generation: 'allow_adult' });
+    const declared = applyNativeAdapterContract(parameters, 'video', 'gemini-video-adapter', 'openai.video.form-input-reference', {
+      veoAdvancedParameters: { supportedParameters: ['generate_audio', 'seed', 'negative_prompt', 'person_generation'], seedMax: 100, personGenerationOptions: ['allow_adult'] },
+    });
+    expect(resolveNativeParameters(declared, { seed: 0, generate_audio: false, person_generation: 'allow_adult' })).toMatchObject({ seed: 0, generate_audio: false, person_generation: 'allow_adult' });
+    expect(declared.find(parameter => parameter.id === 'seed')?.max).toBe(100);
+  });
+
+  it('keeps Seedance 2.5 consumers for existing fields and removes draft and priority', () => {
+    const parameters = applyNativeAdapterContract(describeNativeModel('doubao-seedance-2-5-260628', 'video').parameters!, 'video', 'seedance-2-video-adapter');
+    expect(resolveNativeParameters(parameters, { watermark: 'true', output_format: 'mov' })).toMatchObject({ watermark: 'true', output_format: 'mov' });
+    expect(parameters.map(param => param.id)).not.toContain('draft');
+    expect(parameters.map(param => param.id)).not.toContain('priority');
+  });
+
+  it('exposes Tuzi generation output options without enabling edit fidelity', () => {
+    const parameters = extendAdapterParameters([], 'tuzi-gpt-image-adapter');
+    for (const id of [
+      'output_format',
+      'output_compression',
+      'moderation',
+      'user',
+    ]) {
+      expect(
+        parameters.find((parameter) => parameter.id === id)?.disabledReason
+      ).toBeUndefined();
+      expect(parameters.find((parameter) => parameter.id === id)).toBeDefined();
+    }
+    expect(
+      parameters.find((parameter) => parameter.id === 'input_fidelity')
+    ).toBeUndefined();
+  });
+  it('aligns H3 reference inputs with OpenTu limits without discarding images', () => {
     const inputs = describeNativeModel('MiniMax-H3', 'video').referenceInputs!;
     expect(inputs.images?.maxCountWithoutVideos).toBe(2);
     expect(inputs.images?.maxCount).toBe(9);
@@ -21,30 +80,55 @@ describe('complete native catalog parameter coverage', () => {
       formats: ['url', 'data', 'asset'],
     });
     expect(() => validateNativeReferences(inputs, {})).not.toThrow();
-    expect(() => validateNativeReferences(inputs, {
-      images: ['https://example.test/first.png', 'https://example.test/last.png'],
-    })).not.toThrow();
-    expect(() => validateNativeReferences(inputs, {
-      images: ['https://example.test/frame.png'],
-      videos: ['https://example.test/a.mp4', 'data:video/mp4;base64,AA==', '/asset-library/video.mov'],
-    })).not.toThrow();
-    expect(() => validateNativeReferences(inputs, {
-      images: ['https://example.test/1.png', 'https://example.test/2.png', 'https://example.test/3.png'],
-    })).toThrow('最多支持 2 个');
-    expect(() => validateNativeReferences(inputs, {
-      images: Array(9).fill('https://example.test/image.png'),
-      videos: ['https://example.test/video.mp4'],
-    })).not.toThrow();
-    expect(() => validateNativeReferences(inputs, {
-      images: Array(10).fill('https://example.test/image.png'),
-      videos: ['https://example.test/video.mp4'],
-    })).toThrow('最多支持 9 个');
-    expect(() => validateNativeReferences(inputs, {
-      videos: Array(4).fill('https://example.test/video.mp4'),
-    })).toThrow('最多支持 3 个');
-    expect(() => validateNativeReferences(inputs, {
-      audios: ['https://example.test/audio.mp3'],
-    })).toThrow();
+    expect(() =>
+      validateNativeReferences(inputs, {
+        images: [
+          'https://example.test/first.png',
+          'https://example.test/last.png',
+        ],
+      })
+    ).not.toThrow();
+    expect(() =>
+      validateNativeReferences(inputs, {
+        images: ['https://example.test/frame.png'],
+        videos: [
+          'https://example.test/a.mp4',
+          'data:video/mp4;base64,AA==',
+          '/asset-library/video.mov',
+        ],
+      })
+    ).not.toThrow();
+    expect(() =>
+      validateNativeReferences(inputs, {
+        images: [
+          'https://example.test/1.png',
+          'https://example.test/2.png',
+          'https://example.test/3.png',
+        ],
+      })
+    ).toThrow('最多支持 2 个');
+    expect(() =>
+      validateNativeReferences(inputs, {
+        images: Array(9).fill('https://example.test/image.png'),
+        videos: ['https://example.test/video.mp4'],
+      })
+    ).not.toThrow();
+    expect(() =>
+      validateNativeReferences(inputs, {
+        images: Array(10).fill('https://example.test/image.png'),
+        videos: ['https://example.test/video.mp4'],
+      })
+    ).toThrow('最多支持 9 个');
+    expect(() =>
+      validateNativeReferences(inputs, {
+        videos: Array(4).fill('https://example.test/video.mp4'),
+      })
+    ).toThrow('最多支持 3 个');
+    expect(() =>
+      validateNativeReferences(inputs, {
+        audios: ['https://example.test/audio.mp3'],
+      })
+    ).toThrow();
   });
   it('reports actual adapter limitations rather than claiming generic parameter forwarding', () => {
     const gpt = describeNativeModel('gpt-image-2', 'image').parameters!;

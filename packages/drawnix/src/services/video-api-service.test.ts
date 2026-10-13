@@ -45,6 +45,13 @@ const testProvider = {
 };
 
 describe('VideoAPIService MiniMax-H3 submission', () => {
+  it.each([false, true])('marks an explicit failure during resumed polling (already failed: %s)', async immediate => {
+    const query = vi.spyOn(videoAPIService, 'queryVideoStatus');
+    if (!immediate) query.mockResolvedValueOnce({ id: 'remote', status: 'in_progress', seconds: '5' });
+    query.mockResolvedValue({ id: 'remote', status: 'failed', error: { message: 'provider rejected' }, seconds: '5' });
+    await expect(videoAPIService.resumePolling('remote', { interval: 0, maxAttempts: 1 })).rejects.toMatchObject({ message: 'provider rejected', workflowProviderFailure: true });
+    expect(query).toHaveBeenCalledTimes(immediate ? 1 : 2);
+  });
   beforeEach(() => {
     serviceMocks.resolveInvocationPlanFromRoute.mockReturnValue({
       provider: testProvider,
@@ -56,6 +63,40 @@ describe('VideoAPIService MiniMax-H3 submission', () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('sends confirmed Veo advanced parameters in the actual multipart submit request', async () => {
+    serviceMocks.resolveInvocationPlanFromRoute.mockReturnValue({
+      provider: testProvider,
+      binding: {
+        submitPath: '/videos',
+        metadata: { video: { veoAdvancedParameters: {
+          supportedParameters: ['negative_prompt', 'generate_audio', 'seed'], seedMax: 100,
+        } } },
+      },
+    });
+    const send = vi.spyOn(providerTransport, 'send').mockResolvedValue(new Response(JSON.stringify({ id: 'veo-task', status: 'queued' })));
+    await videoAPIService.submitVideoGeneration({
+      model: 'veo3.1', prompt: 'test', size: '1280x720', seconds: '8',
+      params: { negative_prompt: 'blur', generate_audio: false, seed: 0 },
+    });
+    const body = send.mock.calls[0][1].body as FormData;
+    expect(body.get('model')).toBe('veo3.1');
+    expect(body.get('size')).toBe('1280x720');
+    expect(JSON.parse(String(body.get('metadata')))).toEqual({ negativePrompt: 'blur', generateAudio: false, seed: 0 });
+  });
+
+  it('submits Veo advanced options without a channel declaration', async () => {
+    const send = vi.spyOn(providerTransport, 'send').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'veo-task', status: 'queued' }))
+    );
+    await videoAPIService.submitVideoGeneration({ model: 'veo3.1', prompt: 'test', params: {
+      seed: 0, generate_audio: false, negative_prompt: 'blur', person_generation: 'allow_adult',
+    } });
+    const body = send.mock.calls[0][1].body as FormData;
+    expect(JSON.parse(String(body.get('metadata')))).toEqual({
+      seed: 0, generateAudio: false, negativePrompt: 'blur', personGeneration: 'allow_adult',
+    });
   });
 
   it('materializes a local video into the final provider request body', async () => {
@@ -210,6 +251,17 @@ describe('appendVideoOutputParams', () => {
     });
   });
 
+  it('限制首尾帧和全能参考模式的官方图片数量', () => {
+    expect(() => buildMiniMaxH3VideoRequest({
+      prompt: '超过首尾帧限制',
+      referenceImages: ['1', '2', '3'],
+    })).toThrow('首帧/尾帧图片最多支持 2 张');
+    expect(() => buildMiniMaxH3VideoRequest({
+      prompt: '超过全能参考限制',
+      referenceImages: Array.from({ length: 10 }, (_, index) => `image-${index}`),
+      referenceVideos: ['video-1'],
+    })).toThrow('参考图片最多支持 9 张');
+  });
   it('将 MiniMax-H3 输入视频按官方 reference_video 结构写入请求', () => {
     expect(
       buildMiniMaxH3VideoRequest({

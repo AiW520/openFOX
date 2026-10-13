@@ -402,6 +402,21 @@ function inferImageBindings(
   const isGPTImageCompatibleModel =
     isGptImageModel(model) ||
     (isTuziProfile(profile) && isTuziGPTImageLegacyAlias(model.id));
+  const isNanoBanana21 = model.id === 'gemini-nano-banana-2.1';
+
+  if (isTuziProfile(profile) && model.id === 'flux-3-image') {
+    return [buildBinding(profile, model, {
+      protocol: 'openai.images.generations',
+      requestSchema: 'tuzi.image.flux-3-generation-json',
+      responseSchema: 'openai.image.data',
+      submitPath: '/images/generations',
+      baseUrlStrategy: 'ensure-v1',
+      metadata: { image: { action: 'generation', maxImageCount: 10, supportsMask: false } },
+      priority: 630,
+      confidence: 'high',
+      source: 'template',
+    })];
+  }
 
   if (isMidjourneyModel(model)) {
     bindings.push(
@@ -447,7 +462,10 @@ function inferImageBindings(
     );
   }
 
-  if (profile.providerType === 'gemini-compatible' && isGeminiImageModel) {
+  if (
+    (profile.providerType === 'gemini-compatible' && isGeminiImageModel) ||
+    (isTuziProfile(profile) && isNanoBanana21)
+  ) {
     bindings.push(
       buildBinding(profile, model, {
         protocol: 'google.generateContent',
@@ -456,6 +474,9 @@ function inferImageBindings(
         submitPath: '/v1beta/models/{model}:generateContent',
         baseUrlStrategy: 'trim-v1',
         priority: 480,
+        ...(isNanoBanana21
+          ? { metadata: { image: { maxImageCount: 14 } } }
+          : {}),
         confidence: 'high',
         source: 'template',
       })
@@ -463,8 +484,9 @@ function inferImageBindings(
   }
 
   if (
-    profile.providerType === 'openai-compatible' ||
-    profile.providerType === 'custom'
+    (profile.providerType === 'openai-compatible' ||
+      profile.providerType === 'custom') &&
+    !(isTuziProfile(profile) && isNanoBanana21)
   ) {
     const genericPriority =
       profile.providerType === 'openai-compatible' ? 320 : 160;
@@ -770,15 +792,8 @@ function inferAudioBindings(
               lyrics: '/suno/submit/lyrics',
             },
             versionField: 'mv',
-            versionOptions: [
-              'chirp-v5-5',
-              'chirp-v5',
-              'chirp-v4-5',
-              'chirp-v4',
-              'chirp-v3-0',
-              'chirp-v3-5',
-            ],
-            defaultVersion: 'chirp-v3-5',
+            versionOptions: ['chirp-v6', 'chirp-v6-wild', 'chirp-v6-mini'],
+            defaultVersion: 'chirp-v6',
             supportsContinuation: true,
             supportsUploadContinuation: true,
             supportsTags: true,
@@ -816,6 +831,10 @@ function shouldUseDiscoveredEndpointHintForModel(
   profile: ProviderProfileSnapshot,
   model: ModelConfig
 ): boolean {
+  if (isTuziProfile(profile) && model.id === 'flux-3-image') {
+    return hint.protocol === 'openai.images.generations';
+  }
+
   if (hint.protocol === 'openai.images.edits') {
     return (
       isGptImageModel(model) &&

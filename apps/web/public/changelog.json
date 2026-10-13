@@ -1,123 +1,183 @@
 {
   "versions": [
     {
-      "version": "1.1.24",
-      "date": "2026-10-04",
+      "version": "1.1.28",
+      "date": "2026-10-12",
       "changes": {
         "features": [
-          "add new OpenTu creative experience",
-          "add new Tuzi text models (#274)",
-          "支持 MiniMax-H3 视频输入 (#273)",
-          "add Tuzi postMessage onboarding",
-          "complete MiniMax-H3 V2 workflow",
-          "initialize OpenTu from Tuzi handoff",
-          "完善 Tuzi 账户工作区与日志图片预览 (#260)",
-          "support dragging images into reference inputs (#251)",
-          "融合 AI 语义分层与图片生成增强 (#250)",
-          "使用系统令牌连接 Tuzi 账户",
-          "适配 Seedance 2.5 视频模型 (#239)",
-          "add Tuzi account workspace and managed keys",
-          "add Tuzi URL token integration mode",
-          "统一跨媒体 AI 任务栏目标控制 (#227)",
-          "图片预览显示实际尺寸 (#225)",
-          "支持在 AI 生图描述框粘贴参考图",
-          "增加网站本地数据清理入口 (#212)",
-          "图片请求使用稳定任务 ID (#205)",
-          "支持批量出图预览删除单张结果 (#204)",
-          "add pr.opentu.ai prerelease staging with promote workflow",
-          "支持供应商添加自定义模型",
-          "支持AI任务栏跟随生成图片目标",
-          "完善图片请求 ID 找回与失败重试体验",
-          "reply to workflow image results"
+          "add dedicated Tuzi Flux 3 image adapter",
+          "补齐 Gemini 别名和 Veo 参数并清理未支持字段"
         ],
         "fixes": [
-          "align merged Tuzi session sync with postMessage onboarding",
-          "修复下载完成后提示持续转圈 (#276)",
-          "align MiniMax reference image limits (#275)",
-          "修复等待执行循环 (#272)",
-          "seedance2.0/2.5 的参数修复",
-          "为批量图片下载增加加载状态",
-          "correct Image 2 and 2.5 sizes",
-          "URL 入口等待 Tuzi 模型同步完成",
-          "默认启用 Tuzi 集成",
-          "修复 PPT 讲解视频模型路由与生图复用",
-          "修复 Seedance 2.5 比例参数适配 (#242)",
-          "preserve generated image dimensions and canvas rendering (#240)",
-          "严格使用用户配置的供应商地址 (#235)",
-          "centralize shared database lifecycle",
-          "修复 Gemini 3.1 图片渲染失败 (#224)",
-          "展示上游图片实际尺寸 (#207)",
-          "修复本地缓存哈希识别与测试隔离",
-          "修复本地图片目标跟随与缩略图串图",
-          "repair Tuzi routing and image endpoint fallback (#201)",
-          "stabilize provider endpoints and image generation (#200)",
-          "下线 jsDelivr/npm CDN 发布方案，改用自建服务器直发",
-          "修复任务栏PR检查失败",
-          "preserve remote media cache URL contract",
-          "支持无分界线拼图智能拆图"
+          "restore automatic image loading",
+          "补齐 Tuzi 模型 ID 的尺寸和画质参数"
         ],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "add dedicated Tuzi Flux 3 image adapter"
+    },
+    {
+      "version": "1.1.27",
+      "date": "2026-10-11",
+      "changes": {
+        "features": [],
+        "fixes": [],
         "improvements": [
-          "同步更新web应用版本至1.0.4并更新构建时间",
-          "发布v1.0.3并完成多项优化修复",
-          "收口任务栏PR修改范围",
-          "同步 1.0.0 前端版本元数据",
-          "修复：模型列表及数量获取问题修复",
-          "功能：补齐 GPT Image 2.5 尺寸与分辨率参数",
-          "功能：支持 MiniMax-H3 V1/V2 专用视频接口 (#262)",
-          "功能：完善图片 Request ID 幂等恢复与安全切换 (#261)",
-          "功能：接入 GPT Image 2.5 Sunburst 与 Flare (#259)",
-          "修复：Tuzi 图片请求恢复直连上游 (#258)",
-          "修复：提高生产图片同源代理请求体上限 (#257)",
-          "修复：加固 Tuzi 同源代理与请求标识 (#256)",
-          "接入 Tuzi GPT Image 2.5 图片模型 (#255)",
-          "优化 Tuzi 账户同步与模型加载体验 (#254)",
-          "修复生产环境图片请求恢复与轮询路由 (#253)",
-          "修复 AI 生图、批量生图与视频结果无法渲染 (#252)",
-          "修复 Suno 纯音乐、多音轨结果与画布播放 (#246)",
-          "修复：统一供应商设置页面跳转行为 (#245)",
-          "修复：统一供应商设置页面跳转行为",
-          "功能：新增可恢复的 PPT 讲解视频工作流 (#231)",
-          "新增 Tuzi 账户管理 (#237)",
-          "新增 Tuzi 账户管理",
-          "修复：任务队列多结果无法插入画布 (#236)",
-          "Revert \"feat: add Tuzi URL token integration mode\"",
-          "Revert \"feat: add Tuzi account workspace and managed keys\"",
-          "Revert \"fix(storage): centralize shared database lifecycle\"",
-          "功能：调整任务栏跟随控件布局 (#233)",
-          "修复：永久关闭跟随后禁止覆盖原目标 (#229)",
-          "功能：增加画布联想引用与平滑连线 (#228)",
-          "修复图片请求中断恢复与任务执行生命周期竞态",
-          "修复：恢复任务栏历史提示词虚化复用 (#222)",
-          "修复选中图片 Delete/Backspace 删除能力 (#218)",
-          "修复：支持 AI 生成素材导入参考图",
-          "文档：记录 PR 基线检查结果",
-          "功能：增加 AI 任务栏跟随永久开关",
-          "修复 AI 任务栏未发送草稿误触丢失 (#214)",
-          "功能：支持 AI 任务栏单图永久仅作参考 (#217)",
-          "功能：刷新默认模型并对齐 Seedance 2.0 官方接口 (#216)",
-          "修复：按图片保留任务栏草稿并增强图片插入可靠性 (#215)",
-          "功能：任务栏历史提示词按需复用 (#213)",
-          "修复任务栏多图生成覆盖原图 (#210)",
-          "功能：刷新默认模型目录并接入 Seedance 2.0 (#211)",
-          "修复 AI 任务栏跟随尺寸与局域网图片插入 (#209)",
-          "功能：支持关闭图片任务栏跟随并生成新图片 (#208)",
-          "功能：图片请求中断后按 Request ID 自动恢复轮询 (#206)",
-          "chore withdraw unsafe release versions",
-          "fix restrict API dev proxy to local hosts",
-          "fix production provider API routing",
-          "fix provider endpoint styles and logo routing",
-          "修复 tuzi-api 端点路由兜底",
-          "修复 PR190 合并阻塞问题",
-          "修复 CI pnpm 缺失导致构建失败",
-          "Disable CDN entry asset rewrites",
-          "修复 PR185 硬边界拆图误判风险",
-          "修复 PR188 文本内容数组归一化",
-          "修复多图生成 JSON 解析和默认模型迁移",
-          "修复首帧生图窗口复用状态"
+          "修复：适配Suno 音乐版本更新v6 (#301)",
+          "优化：优化浏览器资源生命周期与本地账户兼容 (#300)",
+          "修复：生成失败卡片与后续任务重叠 (#298)"
         ]
       },
       "type": "patch",
-      "highlights": "add new OpenTu creative experience"
+      "highlights": "构建修复与稳定性改进"
+    },
+    {
+      "version": "1.1.26",
+      "date": "2026-10-11",
+      "changes": {
+        "features": [
+          "add canvas resources and API key support QR codes (#299)"
+        ],
+        "fixes": [],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "add canvas resources and API key support QR codes (#299)"
+    },
+    {
+      "version": "1.1.25",
+      "date": "2026-10-10",
+      "changes": {
+        "features": [],
+        "fixes": [],
+        "improvements": [
+          "修复：统一画布目标设置并修正提示词浮层显示 (#296)",
+          "优化：完善批量出图 Excel 导入导出与手动插入 (#294)"
+        ]
+      },
+      "type": "patch",
+      "highlights": "构建修复与稳定性改进"
+    },
+    {
+      "version": "1.1.24",
+      "date": "2026-10-07",
+      "changes": {
+        "features": [
+          "接入 Nano Banana 2.1 图片模型并修复参考图导入竞态 (#295)"
+        ],
+        "fixes": [],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "接入 Nano Banana 2.1 图片模型并修复参考图导入竞态 (#295)"
+    },
+    {
+      "version": "1.1.23",
+      "date": "2026-10-06",
+      "changes": {
+        "features": [],
+        "fixes": [
+          "keep AI composer within the visible viewport (#292)",
+          "[新增] GPT Image 参数菜单提供“高级功能”开关，按需显示输出格式、压缩质量、内容审核和用户标识，补齐 Tuzi 参数传递",
+          "[修复] AI 提示词输入框按可视区域自适应尺寸并约束位置，超长画布内容和大量参考素材内部滚动，避免输入框越界或被小地图遮挡。"
+        ],
+        "improvements": [
+          "为 Image 2.5 添加高级参数 (#291)",
+          "补齐视频音频与文本生成详情 (#293)"
+        ]
+      },
+      "type": "patch",
+      "highlights": "keep AI composer within the visible viewport (#292)"
+    },
+    {
+      "version": "1.1.22",
+      "date": "2026-10-06",
+      "changes": {
+        "features": [],
+        "fixes": [],
+        "improvements": [
+          "修复 GPT Image 背景透明参数 (#290)",
+          "新增画布图片详情、自动查看开关与侧边展示 (#289)"
+        ]
+      },
+      "type": "patch",
+      "highlights": "构建修复与稳定性改进"
+    },
+    {
+      "version": "1.1.21",
+      "date": "2026-09-30",
+      "changes": {
+        "features": [],
+        "fixes": [
+          "preserve manual providers with legacy Tuzi API (#288)"
+        ],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "preserve manual providers with legacy Tuzi API (#288)"
+    },
+    {
+      "version": "1.1.20",
+      "date": "2026-09-30",
+      "changes": {
+        "features": [
+          "完善 Seedance 2.5 参数适配 (#285)"
+        ],
+        "fixes": [
+          "hide toolbar entry and keep direct route (#286)"
+        ],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "完善 Seedance 2.5 参数适配 (#285)"
+    },
+    {
+      "version": "1.1.19",
+      "date": "2026-09-30",
+      "changes": {
+        "features": [],
+        "fixes": [
+          "preserve configured provider visibility (#284)"
+        ],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "preserve configured provider visibility (#284)"
+    },
+    {
+      "version": "1.1.18",
+      "date": "2026-09-30",
+      "changes": {
+        "features": [
+          "integrate workflow runtime and harden generation recovery (#283)",
+          "persist linked provider groups across reloads (#281)"
+        ],
+        "fixes": [],
+        "improvements": []
+      },
+      "type": "patch",
+      "highlights": "integrate workflow runtime and harden generation recovery (#283)"
+    },
+    {
+      "version": "1.1.17",
+      "date": "2026-09-29",
+      "changes": {
+        "features": [
+          "优化画布交互并修复 Seedance 视频播放 (#278)",
+          "integrate workflow runtime and harden generation recovery",
+          "integrate embedded OpenTu workflow mode"
+        ],
+        "fixes": [
+          "clear failed generation cards (#280)"
+        ],
+        "improvements": [
+          "fix（music）：Suno 任务轮询时音频结果丢失 (#282)",
+          "Revert \"feat: integrate workflow runtime and harden generation recovery\""
+        ]
+      },
+      "type": "patch",
+      "highlights": "优化画布交互并修复 Seedance 视频播放 (#278)"
     },
     {
       "version": "1.1.16",
@@ -913,175 +973,6 @@
       },
       "type": "patch",
       "highlights": "供应商设置增加「图片优先使用异步接口」开关"
-    },
-    {
-      "version": "0.9.8",
-      "date": "2026-05-17",
-      "changes": {
-        "features": [
-          "添加批量插入功能"
-        ],
-        "fixes": [
-          "split batch media action copy by target context",
-          "support bulk media insertion and image generation compatibility"
-        ],
-        "improvements": [
-          "Refactor canvas batch insertion to viewport flow layout",
-          "修复对话输入框内层描边并抽出共享壳",
-          "聊天抽屉图片预览收口到列表层",
-          "补充首屏壳层与 chunk 守门经验",
-          "修复素材库配色与多选架构，补充UI规范和架构说明",
-          "修复：蒙版预览缓存不进入素材库",
-          "Bump web app version to 0.9.7"
-        ]
-      },
-      "type": "patch",
-      "highlights": "添加批量插入功能"
-    },
-    {
-      "version": "0.9.7",
-      "date": "2026-05-09",
-      "changes": {
-        "features": [],
-        "fixes": [
-          "修复批量导入图片弹窗显示异常"
-        ],
-        "improvements": [
-          "更新版本号至0.9.6并同步构建时间"
-        ]
-      },
-      "type": "patch",
-      "highlights": "修复批量导入图片弹窗显示异常"
-    },
-    {
-      "version": "0.9.6",
-      "date": "2026-05-06",
-      "changes": {
-        "features": [
-          "为绘图工具添加键盘快捷键调整大小功能"
-        ],
-        "fixes": [],
-        "improvements": []
-      },
-      "type": "patch",
-      "highlights": "为绘图工具添加键盘快捷键调整大小功能"
-    },
-    {
-      "version": "0.9.5",
-      "date": "2026-05-06",
-      "changes": {
-        "features": [],
-        "fixes": [
-          "修复蒙版画笔导出和预览样式问题"
-        ],
-        "improvements": []
-      },
-      "type": "patch",
-      "highlights": "修复蒙版画笔导出和预览样式问题"
-    },
-    {
-      "version": "0.9.4",
-      "date": "2026-05-06",
-      "changes": {
-        "features": [],
-        "fixes": [],
-        "improvements": [
-          "Stop idle-prefetch retries from blocking SW updates"
-        ]
-      },
-      "type": "patch",
-      "highlights": "构建修复与稳定性改进"
-    },
-    {
-      "version": "0.9.3",
-      "date": "2026-05-06",
-      "changes": {
-        "features": [
-          "support AI image mask editing"
-        ],
-        "fixes": [
-          "keep send button visible",
-          "resume async image tasks after reload"
-        ],
-        "improvements": [
-          "更新版本号至0.9.2并刷新构建时间"
-        ]
-      },
-      "type": "patch",
-      "highlights": "support AI image mask editing"
-    },
-    {
-      "version": "0.9.2",
-      "date": "2026-05-04",
-      "changes": {
-        "features": [
-          "优化长提示词输入框展开体验",
-          "add image generate-again prefill"
-        ],
-        "fixes": [
-          "优化参考图描述和提示词优先级协议",
-          "allow hand panning while drawing",
-          "address regenerate prefill review findings"
-        ],
-        "improvements": []
-      },
-      "type": "minor",
-      "highlights": "优化长提示词输入框展开体验"
-    },
-    {
-      "version": "0.7.0",
-      "date": "2026-05-03",
-      "changes": {
-        "features": [],
-        "fixes": [
-          "allow hand panning while drawing"
-        ],
-        "improvements": [
-          "更新应用版本号至0.6.99并同步构建时间"
-        ]
-      },
-      "type": "minor",
-      "highlights": "allow hand panning while drawing"
-    },
-    {
-      "version": "0.6.99",
-      "date": "2026-05-03",
-      "changes": {
-        "features": [
-          "为视频生成 prompt 添加参考图用途说明",
-          "支持异步图片生成和生成素材重置",
-          "添加目标总时长配置并优化UI与错误处理"
-        ],
-        "fixes": [
-          "移除生成视频时重复的提示词构建逻辑",
-          "强化爆款视频首尾帧角色一致性",
-          "绑定异步任务供应商路由"
-        ],
-        "improvements": []
-      },
-      "type": "patch",
-      "highlights": "为视频生成 prompt 添加参考图用途说明"
-    },
-    {
-      "version": "0.6.98",
-      "date": "2026-05-02",
-      "type": "patch",
-      "highlights": "构建修复与稳定性改进"
-    },
-    {
-      "version": "0.6.97",
-      "date": "2026-05-02",
-      "changes": {
-        "features": [
-          "优化价格展示增加Bussiness"
-        ],
-        "fixes": [
-          "parallelize character reference generation"
-        ],
-        "improvements": []
-      },
-      "type": "patch",
-      "highlights": "优化价格展示增加Bussiness"
     }
   ]
 }

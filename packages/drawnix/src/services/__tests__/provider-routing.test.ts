@@ -2296,6 +2296,30 @@ describe('provider routing', () => {
     );
   });
 
+  it('routes Nano Banana 2.1 on Tuzi to the exact Google generateContent path', () => {
+    const profile = {
+      id: 'provider-tuzi-nb21',
+      name: 'Tuzi',
+      providerType: 'openai-compatible' as const,
+      baseUrl: 'https://api.tu-zi.com/v1',
+      apiKey: 'key',
+      authType: 'bearer' as const,
+    };
+    const model: ModelConfig = {
+      id: 'gemini-nano-banana-2.1',
+      label: 'Nano Banana 2.1',
+      type: 'image',
+      vendor: ModelVendor.GEMINI,
+    };
+    const bindings = inferBindingsForProviderModel(profile, model);
+    expect(bindings).toHaveLength(1);
+    expect(bindings.find((binding) => binding.protocol === 'google.generateContent')).toMatchObject({
+      protocol: 'google.generateContent',
+      submitPath: '/v1beta/models/{model}:generateContent',
+      baseUrlStrategy: 'trim-v1',
+    });
+  });
+
   it('keeps third-party tuzi gemini image models on generateContent', () => {
     const profile = {
       id: 'provider-c',
@@ -2816,14 +2840,11 @@ describe('provider routing', () => {
       lyrics: '/suno/submit/lyrics',
     });
     expect(binding?.metadata?.audio?.versionOptions).toEqual([
-      'chirp-v5-5',
-      'chirp-v5',
-      'chirp-v4-5',
-      'chirp-v4',
-      'chirp-v3-0',
-      'chirp-v3-5',
+      'chirp-v6',
+      'chirp-v6-wild',
+      'chirp-v6-mini',
     ]);
-    expect(binding?.metadata?.audio?.defaultVersion).toBe('chirp-v3-5');
+    expect(binding?.metadata?.audio?.defaultVersion).toBe('chirp-v6');
   });
 
   it('infers Kling capability bindings with action-scoped version metadata', () => {
