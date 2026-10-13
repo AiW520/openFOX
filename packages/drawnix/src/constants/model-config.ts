@@ -1646,6 +1646,16 @@ export const ALL_MODELS: ModelConfig[] = [
   ...AUDIO_MODELS,
 ];
 
+export function getAllBuiltInModelConfigs(): ModelConfig[] {
+  return [
+    ...IMAGE_MODELS,
+    ...VIDEO_MODELS,
+    ...HIDDEN_VIDEO_MODELS,
+    ...BUILT_IN_TEXT_MODELS,
+    ...AUDIO_MODELS,
+  ];
+}
+
 let runtimeModels: ModelConfig[] = [];
 
 function mergeModels(

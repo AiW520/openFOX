@@ -159,7 +159,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
     />
-    <meta name="app-version" content="1.0.10" />
+    <meta name="app-version" content="1.1.24" />
     <style>
       :root {
         --app-boot-bg: radial-gradient(
@@ -298,6 +298,17 @@
         color: rgba(99, 110, 114, 0.84);
         font-size: 12px;
         line-height: 1.5;
+      }
+
+      .app-boot-retry {
+        margin-top: 16px;
+        padding: 8px 16px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #334155;
+        font: inherit;
+        cursor: pointer;
       }
 
       #seo-content {
@@ -551,6 +562,7 @@
         <div class="app-boot-note" data-app-boot-note>
           数据存储在浏览器本地，可通过菜单中的“备份/恢复”对重要数据进行管理。
         </div>
+        <button class="app-boot-retry" type="button" data-app-boot-retry hidden>重新加载</button>
       </div>
     </div>
     <main id="seo-content">
@@ -670,6 +682,13 @@
         var bootProgress = 0;
         var simulationStartAt = Date.now();
         var simulationTimer = 0;
+        var stalledBootTimer = window.setTimeout(function () {
+          if (bootReady) return;
+          setProgress(undefined, {
+            tip: '加载时间较长，可以继续等待或重新加载。',
+          });
+          showBootRetry();
+        }, 45000);
         var slowTipTimer = window.setTimeout(function () {
           var tip = document.querySelector('[data-app-boot-tip]');
           if (tip) {
@@ -831,6 +850,10 @@
         };
 
         function clearBootTimers() {
+          if (stalledBootTimer) {
+            window.clearTimeout(stalledBootTimer);
+            stalledBootTimer = 0;
+          }
           if (slowTipTimer) {
             window.clearTimeout(slowTipTimer);
             slowTipTimer = 0;
@@ -847,6 +870,22 @@
 
         function getBootRoot() {
           return document.getElementById('app-boot-loading');
+        }
+
+        function showBootRetry() {
+          var retryButton = document.querySelector('[data-app-boot-retry]');
+          if (retryButton) retryButton.hidden = false;
+        }
+
+        var retryButton = document.querySelector('[data-app-boot-retry]');
+        if (retryButton) {
+          retryButton.addEventListener('click', function () {
+            if (!window.__OPENTU_BOOT_DYNAMIC_IMPORT_RECOVERY__(
+              new Error('Failed to fetch dynamically imported module: boot-main-entry')
+            )) {
+              window.location.replace(createBootImportRecoveryUrl());
+            }
+          });
         }
 
         function getBootAppVersion() {
@@ -988,6 +1027,7 @@
           setProgress(100);
           clearBootTimers();
           document.documentElement.classList.add('app-boot-error');
+          showBootRetry();
           var title = document.querySelector('[data-app-boot-title]');
           var tip = document.querySelector('[data-app-boot-tip]');
           if (title) {
@@ -1073,7 +1113,7 @@
             });
 
             window.__OPENTU_SW_REGISTRATION_PROMISE__ = navigator.serviceWorker
-              .register('./sw.js')
+              .register('%BASE_URL%sw.js')
               .then(function (registration) {
                 setProgress(54, {
                   tip: '启动缓存服务已连接，正在准备资源清单...',

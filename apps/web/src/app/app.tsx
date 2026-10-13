@@ -37,14 +37,16 @@ import {
   type ExperienceVersion,
 } from './experience-version';
 import styles from './app.module.scss';
+import { createExperienceNavigation } from './experience-navigation';
+import { useCompactScreen } from '../../../../packages/drawnix/src/hooks/use-compact-screen';
 
 const NewExperienceHome = lazy(() =>
-  import('@drawnix/drawnix').then((module) => ({
+  import('../../../../packages/drawnix/src/components/new-experience/NewExperienceHome').then((module) => ({
     default: module.NewExperienceHome,
   }))
 );
 const NewExperienceSettingsOverlay = lazy(() =>
-  import('@drawnix/drawnix').then((module) => ({
+  import('../../../../packages/drawnix/src/components/new-experience/NewExperienceSettingsOverlay').then((module) => ({
     default: module.NewExperienceSettingsOverlay,
   }))
 );
@@ -57,6 +59,7 @@ const Drawnix = lazy(() =>
 
 // 节流保存 viewport 的间隔（毫秒）
 const VIEWPORT_SAVE_DEBOUNCE = 500;
+const NewCanvasHost = lazy(() => import('../../../../packages/drawnix/src/workflow-mode/host/NewCanvasHost').then(module => ({ default: module.NewCanvasHost })));
 
 // URL 参数名
 const BOARD_URL_PARAM = 'board';
@@ -66,8 +69,9 @@ const BOARD_CLOSE_SNAPSHOT_KEY = 'aitu_board_close_snapshot_v1';
 let appInitialized = false;
 
 async function refreshBoardViewportBounds(board: PlaitBoard): Promise<void> {
-  const { initializeViewBox, updateViewBox, updateViewportOffset } =
+  const { PlaitBoard, initializeViewBox, updateViewBox, updateViewportOffset } =
     await import('@plait/core');
+  if (!PlaitBoard.getBoardContainer(board)?.isConnected) return;
   initializeViewBox(board);
   updateViewBox(board);
   updateViewportOffset(board);
@@ -219,6 +223,7 @@ function clearBoardCloseSnapshot(boardId?: string | null): void {
 }
 
 export function App() {
+  const compactScreen = useCompactScreen();
   const [experienceVersion, setExperienceVersion] = useState<ExperienceVersion>(
     () => {
       const entry = new URLSearchParams(window.location.search).get(
@@ -226,25 +231,49 @@ export function App() {
       );
       return entry === 'new' || entry === 'legacy'
         ? entry
-        : readExperienceVersion();
+        : readExperienceVersion(undefined, compactScreen ? 'new' : 'legacy');
     }
   );
   const [showNewHome, setShowNewHome] = useState(
-    () => new URLSearchParams(window.location.search).get('view') !== 'canvas'
+    () => !window.location.pathname.startsWith('/workflow') && new URLSearchParams(window.location.search).get('view') !== 'canvas'
   );
   const [showHomeSettings, setShowHomeSettings] = useState(false);
   const isNewExperience = experienceVersion === 'new';
   const isNewHome = isNewExperience && showNewHome;
   useEffect(() => {
+    if (!compactScreen) return;
+    const updateVisibleHeight = () => document.documentElement.style.setProperty(
+      '--opentu-visible-height', `${window.visualViewport?.height || window.innerHeight}px`
+    );
+    updateVisibleHeight();
+    window.visualViewport?.addEventListener('resize', updateVisibleHeight);
+    window.addEventListener('resize', updateVisibleHeight);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateVisibleHeight);
+      window.removeEventListener('resize', updateVisibleHeight);
+      document.documentElement.style.removeProperty('--opentu-visible-height');
+    };
+  }, [compactScreen]);
+  useEffect(() => {
+    const sync = () => {
+      const url = new URL(window.location.href);
+      const workflow = url.pathname === '/workflow' || url.pathname.startsWith('/workflow/');
+      const version = workflow ? 'new' : url.searchParams.get('experience');
+      if (version === 'new' || version === 'legacy') setExperienceVersion(version);
+      setShowNewHome(!workflow && url.searchParams.get('view') !== 'canvas');
+    };
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+  useEffect(() => {
     writeExperienceVersion(experienceVersion);
   }, [experienceVersion]);
+  const [experienceNavigation] = useState(() => createExperienceNavigation());
   const switchExperience = (version: ExperienceVersion) => {
+    const url = experienceNavigation(new URL(window.location.href), version, experienceVersion);
     setExperienceVersion(version);
-    setShowNewHome(version === 'new');
+    setShowNewHome(!url.pathname.startsWith('/workflow') && url.searchParams.get('view') !== 'canvas');
     setShowHomeSettings(false);
-    const url = new URL(window.location.href);
-    url.searchParams.set('experience', version);
-    url.searchParams.delete('view');
     window.history.replaceState(window.history.state, '', url);
   };
   const [isLoading, setIsLoading] = useState(true);
@@ -274,12 +303,12 @@ export function App() {
   // 保存 board 引用，用于手动触发边界更新
   const boardRef = useRef<PlaitBoard | null>(null);
   useEffect(() => {
-    if (isNewHome) return;
+    if (isNewExperience) return;
     const frame = requestAnimationFrame(() => {
       if (boardRef.current) void refreshBoardViewportBounds(boardRef.current);
     });
     return () => cancelAnimationFrame(frame);
-  }, [isNewHome]);
+  }, [isNewExperience]);
   // 标记是否正在同步其他标签页的数据（同步期间不保存，防止旧数据覆盖新数据）
   const isSyncingRef = useRef<boolean>(false);
   // 标记本标签页是否有用户主动修改（只有用户修改过才在 visibilitychange 时保存）
@@ -1040,7 +1069,7 @@ export function App() {
   }
 
   return (
-    <div className={isNewHome ? styles.experienceRoot : styles.canvasRoot}>
+    <div className={`${isNewHome ? styles.experienceRoot : styles.canvasRoot} ${compactScreen ? styles.compactRoot : ''}`}>
       {(!isNewExperience || isNewHome) && (
         <div className={styles.experienceChrome}>
           <div className={styles.experienceSwitcher} aria-label="体验版本">
@@ -1076,24 +1105,28 @@ export function App() {
             }}
             onOpenSettings={() => setShowHomeSettings(true)}
           />
-          {showHomeSettings && (
-            <NewExperienceSettingsOverlay
-              onClose={() => setShowHomeSettings(false)}
-            />
-          )}
         </Suspense>
       )}
-      <div
+      {showHomeSettings && <Suspense fallback={null}><NewExperienceSettingsOverlay initialView={isNewHome ? 'tuzi-account' : 'providers'} onClose={() => setShowHomeSettings(false)} /></Suspense>}
+      {isNewExperience && !isNewHome ? <Suspense fallback={null}>
+        <NewCanvasHost boardId={currentBoardId} onLegacy={() => switchExperience('legacy')}
+          onHome={() => {
+            setShowNewHome(true);
+            const url = new URL(window.location.href);
+            url.pathname = '/';
+            url.searchParams.delete('view');
+            window.history.replaceState(window.history.state, '', url);
+          }}
+          onProviderSettings={() => setShowHomeSettings(true)} />
+      </Suspense> : !isNewExperience && <div
         style={{
           position: 'absolute',
           inset: 0,
-          display: isNewHome ? 'none' : undefined,
         }}
-        aria-hidden={isNewHome}
       >
         <Suspense fallback={null}>
           <Drawnix
-            canvasLayout={isNewExperience ? 'workbench' : 'legacy'}
+            canvasLayout="legacy"
             onBackToNewHome={() => {
               setShowNewHome(true);
               const url = new URL(window.location.href);
@@ -1124,7 +1157,7 @@ export function App() {
             }}
           />
         </Suspense>
-      </div>
+      </div>}
     </div>
   );
 }

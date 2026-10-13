@@ -81,6 +81,21 @@ describe('ai-input-ui-events', () => {
     unregister();
   });
 
+  it('holds a workflow-only draft until the workflow consumer mounts', async () => {
+    const detail = { generationType: 'image' as const, prompt: 'workflow draft', target: 'workflow' as const };
+    const legacy = vi.fn();
+    const workflow = vi.fn();
+    const unregisterLegacy = registerAIInputPrefillConsumer(legacy);
+    requestAIInputPrefill(detail);
+    expect(legacy).not.toHaveBeenCalled();
+    const unregisterWorkflow = registerAIInputPrefillConsumer(workflow, 'workflow');
+    await Promise.resolve();
+    expect(workflow).toHaveBeenCalledWith(detail);
+    expect(legacy).not.toHaveBeenCalled();
+    unregisterWorkflow();
+    unregisterLegacy();
+  });
+
   it('dispatches a prefill immediately when the canvas input is mounted', () => {
     const consumer = vi.fn();
     const unregister = registerAIInputPrefillConsumer(consumer);

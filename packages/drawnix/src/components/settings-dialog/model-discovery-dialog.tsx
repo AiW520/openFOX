@@ -11,7 +11,7 @@ import {
   getModelVendorPalette,
   ModelVendorMark,
 } from '../shared/ModelVendorBrand';
-import { HoverTip } from '../shared';
+import { HoverTip } from '../shared/hover';
 import {
   type ModelTypeFilter,
   MODEL_TYPE_LABELS,

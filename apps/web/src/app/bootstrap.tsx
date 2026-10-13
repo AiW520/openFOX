@@ -18,6 +18,7 @@ import {
 } from '@drawnix/drawnix/runtime';
 import { analytics } from '@drawnix/drawnix';
 import { initSWConsoleCapture } from '../utils/sw-console-capture';
+import { PublisherGate, clearSharedSettings } from './PublisherGate';
 
 function isLocalDevelopmentHost(hostname: string): boolean {
   return (
@@ -390,10 +391,12 @@ if (shouldUseServiceWorker) {
 
   const swRegistrationPromise =
     window.__OPENTU_SW_REGISTRATION_PROMISE__ ||
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('[Main] Service worker registration failed:', error);
-      return null;
-    });
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .catch((error) => {
+        console.warn('[Main] Service worker registration failed:', error);
+        return null;
+      });
 
   window.__OPENTU_SW_REGISTRATION_PROMISE__ = swRegistrationPromise;
 
@@ -660,13 +663,17 @@ updateBootStatus({
   progress: 88,
 });
 
+if (import.meta.env.VITE_PUBLISHER_MODE !== '1') {
+  void clearSharedSettings().catch((error) => console.warn('Unable to clear trial settings', error));
+}
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      {import.meta.env.VITE_PUBLISHER_MODE === '1' ? <PublisherGate><App /></PublisherGate> : <App />}
     </ErrorBoundary>
   </StrictMode>
 );

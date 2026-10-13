@@ -5,9 +5,11 @@ import {
   type DrawnixState,
 } from '../../hooks/use-drawnix';
 import { SettingsDialog } from '../settings-dialog/settings-dialog';
+import { useCompactScreen } from '../../hooks/use-compact-screen';
 
 export interface NewExperienceSettingsOverlayProps {
   onClose: () => void;
+  initialView?: 'tuzi-account' | 'providers';
 }
 
 /**
@@ -17,12 +19,12 @@ export interface NewExperienceSettingsOverlayProps {
  */
 export function NewExperienceSettingsOverlay({
   onClose,
+  initialView = 'tuzi-account',
 }: NewExperienceSettingsOverlayProps) {
+  const compactScreen = useCompactScreen();
   const [appState, setAppState] = useState<DrawnixState>(() => ({
     pointer: PlaitPointerType.hand,
-    isMobile:
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(max-width: 768px)').matches,
+    isMobile: compactScreen,
     isPencilMode: false,
     openDialogTypes: new Set(),
     dialogInitialData: null,
@@ -30,6 +32,10 @@ export function NewExperienceSettingsOverlay({
     openCleanConfirm: false,
     openSettings: true,
   }));
+
+  useEffect(() => {
+    setAppState(current => ({ ...current, isMobile: compactScreen }));
+  }, [compactScreen]);
 
   useEffect(() => {
     if (!appState.openSettings) {
@@ -46,7 +52,7 @@ export function NewExperienceSettingsOverlay({
     <DrawnixContext.Provider value={contextValue}>
       <SettingsDialog
         container={typeof document === 'undefined' ? null : document.body}
-        initialView="tuzi-account"
+        initialView={initialView}
       />
     </DrawnixContext.Provider>
   );

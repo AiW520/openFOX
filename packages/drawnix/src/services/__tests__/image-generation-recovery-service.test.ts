@@ -12,6 +12,7 @@ import {
   getImageSubmissionRequestId,
   isCurrentImageRecoveryAttempt,
 } from '../image-generation-recovery-service';
+import { PUBLISHER_CREDENTIAL_MARKER } from '../publisher-transport';
 
 function createPlan() {
   return {
@@ -225,6 +226,42 @@ describe('image generation recovery service', () => {
     const headers = new Headers(init?.headers);
     expect(headers.get('Authorization')).toBe('Bearer secret-token');
     expect(headers.get('X-Request-Id')).toBe('submission-main');
+  });
+
+  it('routes shared publisher credential recovery through the same-origin proxy', async () => {
+    const plan = createPlan();
+    plan.provider.baseUrl = 'https://api.tu-zi.com/coding/v1';
+    plan.provider.apiKey = PUBLISHER_CREDENTIAL_MARKER;
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        status: 'succeeded',
+        request_id: 'submission-shared',
+        data: [{ url: 'https://images.example.com/shared-result.png' }],
+      })
+    );
+    const onSucceeded = vi.fn();
+    const service = new ImageGenerationRecoveryService({
+      fetcher,
+      resolveInvocationPlan: vi.fn(() => plan),
+      jitterRatio: 0,
+    });
+
+    service.start(
+      createTask('task-shared', 'submission-shared', Date.now(), plan),
+      { onSucceeded, onFailed: vi.fn() }
+    );
+    await vi.waitFor(() => expect(onSucceeded).toHaveBeenCalledTimes(1));
+
+    const [url, init] = fetcher.mock.calls[0] || [];
+    const parsed = new URL(String(url));
+    expect(parsed.pathname).toBe('/api/publisher/proxy');
+    expect(parsed.searchParams.get('path')).toBe(
+      '/coding/v1/images/generations/result?request_id=submission-shared'
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get('Authorization')).toBeNull();
+    expect(headers.get('X-Request-Id')).toBe('submission-shared');
+    expect(init?.credentials).toBe('same-origin');
   });
 
   it('re-resolves the same provider and model when a persisted binding ID no longer exists', async () => {

@@ -12,6 +12,8 @@ const store = vi.hoisted(() => ({
   models: [] as ModelConfig[],
   savePreferences: vi.fn(),
   saveParams: vi.fn(),
+  profileId: 'legacy-default',
+  savedModel: 'gpt-image-2.5',
 }));
 
 vi.mock('../../../hooks/use-runtime-models', () => ({
@@ -22,14 +24,14 @@ vi.mock('../../../utils/settings-manager', () => ({
   createModelRef: (profileId: string | null, modelId: string) =>
     modelId ? { profileId, modelId } : null,
   resolveInvocationRoute: () => ({
-    profileId: 'legacy-default',
+    profileId: store.profileId,
     modelId: 'gpt-image-2.5',
   }),
 }));
 vi.mock('../../../services/ai-generation-preferences-service', () => ({
   loadAIInputPreferences: () => ({
     generationType: 'image',
-    selectedModel: 'gpt-image-2.5',
+    selectedModel: store.savedModel,
     selectedParams: {},
     selectedCount: 1,
     selectedSkillId: 'auto',
@@ -113,12 +115,25 @@ function renderWithSession(
 }
 
 beforeEach(() => {
+  store.profileId = 'legacy-default';
+  store.savedModel = 'gpt-image-2.5';
   store.models = [runtimeModel()];
   vi.clearAllMocks();
 });
 afterEach(cleanup);
 
 describe('chat drawer generation state synchronization', () => {
+  it('replaces a stale trial image preference with GPT Image 2.5 and allows a later manual selection', () => {
+    store.profileId = 'publisher-shared';
+    store.savedModel = 'gpt-image-2';
+    store.models = [runtimeModel('gpt-image-2', store.profileId), runtimeModel('gpt-image-2.5', store.profileId)];
+    const { result } = renderHook(() => useChatDrawerGenerationControls());
+    expect(result.current.selectedModel).toBe('gpt-image-2.5');
+    expect(result.current.selectedModelRef?.profileId).toBe('publisher-shared');
+    act(() => result.current.handleModelSelect('gpt-image-2', { profileId: store.profileId, modelId: 'gpt-image-2' }));
+    expect(result.current.selectedModel).toBe('gpt-image-2');
+  });
+
   it('settles a legacy session against runtime-only models before persisting', () => {
     const { result, persist, rerender } = renderWithSession();
     expect(result.current.controls.selectedModelRef).toEqual({

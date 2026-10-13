@@ -60,7 +60,7 @@ vi.mock('../chat-drawer/useChatDrawerGenerationControls', () => ({
       imageModels: [imageModel],
       videoModels: [],
       compatibleParams: [],
-      selectedParams: {},
+      selectedParams: { size: 'auto', resolution: '2k', quality: 'high' },
       handleModelSelect: vi.fn(),
       handleParamSelect: vi.fn(),
       handleModelConfigSelect: onModelSelect,
@@ -70,6 +70,7 @@ vi.mock('../chat-drawer/useChatDrawerGenerationControls', () => ({
 
 const originalScrollIntoView = Element.prototype.scrollIntoView;
 beforeEach(() => {
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   selection.available = true;
   Element.prototype.scrollIntoView = vi.fn();
 });
@@ -83,6 +84,19 @@ afterEach(() => {
 });
 
 describe('new home model and count handoff', () => {
+  it('keeps the mobile prompt editable on Enter and hands parameters over on button tap', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const openCanvas = vi.fn();
+    const { container } = render(<NewExperienceHome onOpenCanvas={openCanvas} onOpenSettings={vi.fn()} />);
+    expect(container.querySelector('.new-experience--compact')).toBeTruthy();
+    const input = screen.getByRole('textbox', { name: '创作描述' });
+    fireEvent.change(input, { target: { value: '手机端草稿' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(openCanvas).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '打开画布' }));
+    expect(openCanvas).toHaveBeenCalledOnce();
+    expect(requestAIInputPrefill).toHaveBeenCalledWith(expect.objectContaining({ prompt: '手机端草稿', target: 'workflow', params: { size: 'auto', resolution: '2k', quality: 'high' } }));
+  });
   it('renders the real count selector and passes 20 images with the provider to the canvas without generating', () => {
     const openCanvas = vi.fn();
     render(
@@ -100,6 +114,8 @@ describe('new home model and count handoff', () => {
     expect(requestAIInputPrefill).toHaveBeenCalledWith(
       expect.objectContaining({
         count: 20,
+        params: { size: 'auto', resolution: '2k', quality: 'high' },
+        target: 'workflow',
         prompt: '产品摄影',
         model: 'test-image',
         modelRef: { profileId: 'test-provider', modelId: 'test-image' },
@@ -107,6 +123,41 @@ describe('new home model and count handoff', () => {
       })
     );
     expect(openCanvas).toHaveBeenCalledOnce();
+  });
+
+  it('the canvas shortcut carries a nonempty draft, but still opens directly when empty', () => {
+    const openCanvas = vi.fn();
+    render(<NewExperienceHome onOpenCanvas={openCanvas} onOpenSettings={vi.fn()} />);
+    const shortcut = screen.getByRole('button', { name: '打开画布' });
+    fireEvent.click(shortcut);
+    expect(openCanvas).toHaveBeenCalledOnce();
+    expect(requestAIInputPrefill).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByRole('textbox', { name: '创作描述' }), {
+      target: { value: '保留尺寸和分辨率的草稿' },
+    });
+    fireEvent.click(shortcut);
+    expect(requestAIInputPrefill).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: '保留尺寸和分辨率的草稿',
+      params: { size: 'auto', resolution: '2k', quality: 'high' },
+      count: 1,
+      target: 'workflow',
+    }));
+    expect(openCanvas).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the prompt when opening the canvas before a model is configured', () => {
+    selection.available = false;
+    const openCanvas = vi.fn();
+    render(<NewExperienceHome onOpenCanvas={openCanvas} onOpenSettings={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: '创作描述' }), {
+      target: { value: '草稿暂存' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '打开画布' }));
+    expect(openCanvas).toHaveBeenCalledOnce();
+    expect(requestAIInputPrefill).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: '草稿暂存', model: undefined, modelRef: null, target: 'workflow',
+    }));
   });
 
   it('Enter carries the prompt, count and provider to the canvas; Shift+Enter and IME confirmation do not', () => {
@@ -219,7 +270,6 @@ describe('new home model and count handoff', () => {
   });
 
   it('selects the full model config from the combined media showcase', () => {
-    vi.stubGlobal('matchMedia', () => ({ matches: true }));
     const onConfigure = vi.fn();
     render(
       <NewExperienceHome onOpenCanvas={vi.fn()} onOpenSettings={onConfigure} />

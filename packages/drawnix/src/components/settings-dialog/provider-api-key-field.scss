@@ -1,0 +1,13 @@
+.provider-api-key-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  .settings-dialog__secret-input-wrap { flex: 1; min-width: 0; position: relative; }
+  .settings-dialog__button--fetch { white-space: nowrap; height: 32px; }
+  &--compact {
+    flex-direction: column;
+    .settings-dialog__secret-input-wrap { width: 100%; flex: none; }
+    .settings-dialog__button--fetch { width: 100%; height: 42px; }
+  }
+}

@@ -896,7 +896,7 @@ async function main() {
     // 生成 slug
     const slug = mdxFile
       .replace(/\.mdx$/, '')
-      .replace(/\//g, '-')
+      .replace(/[\\/]/g, '-')
       .replace(/^-/, '');
     
     // 转换 Markdown 为 HTML
@@ -915,6 +915,7 @@ async function main() {
   for (const page of pages) {
     const pageHtml = generatePage(page, pages, config, version);
     const outputPath = path.join(outputDir, `${page.slug}.html`);
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, pageHtml);
     console.log(`✅ 生成: ${page.slug}.html`);
   }
@@ -939,4 +940,7 @@ async function main() {
   console.log(`📄 共 ${pages.length} 个页面`);
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

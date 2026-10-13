@@ -7,6 +7,10 @@ import {
 } from './experience-version';
 
 describe('experience version preference', () => {
+  it('defaults mobile to new while preserving an explicit legacy preference', () => {
+    expect(readExperienceVersion({ getItem: () => null }, 'new')).toBe('new');
+    expect(readExperienceVersion({ getItem: () => 'legacy' }, 'new')).toBe('legacy');
+  });
   it('defaults invalid and missing values to the legacy experience', () => {
     expect(parseExperienceVersion(null)).toBe('legacy');
     expect(parseExperienceVersion('future')).toBe('legacy');

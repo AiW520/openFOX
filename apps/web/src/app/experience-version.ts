@@ -7,7 +7,8 @@ export function parseExperienceVersion(value: unknown): ExperienceVersion {
 }
 
 export function readExperienceVersion(
-  storage?: Pick<Storage, 'getItem'> | null
+  storage?: Pick<Storage, 'getItem'> | null,
+  fallback: ExperienceVersion = 'legacy'
 ): ExperienceVersion {
   try {
     const availableStorage =
@@ -16,11 +17,10 @@ export function readExperienceVersion(
           ? null
           : window.localStorage
         : storage;
-    return parseExperienceVersion(
-      availableStorage?.getItem(EXPERIENCE_VERSION_STORAGE_KEY)
-    );
+    const stored = availableStorage?.getItem(EXPERIENCE_VERSION_STORAGE_KEY);
+    return stored === 'new' || stored === 'legacy' ? stored : fallback;
   } catch {
-    return 'legacy';
+    return fallback;
   }
 }
 

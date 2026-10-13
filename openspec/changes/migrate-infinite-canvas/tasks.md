@@ -1,0 +1,10 @@
+- [x] Copy the workflow canvas runtime, host adapters, and static assets into the current project without modifying `Opentu_old`.
+- [x] Isolate workflow aliases, CSS, assets, and lazy-loaded runtime from the existing homepage and legacy canvas.
+- [x] Adapt workflow provider configuration to the current settings manager, including channel/model discovery and shared defaults.
+- [x] Adapt task creation, persistence, batch generation, recovery, and task display to the current task services.
+- [x] Replace the active new-canvas rendering while preserving the new homepage, top bar controls, version switching, and legacy canvas.
+- [x] Add or update focused tests for configuration synchronization, project restore, task safety, and navigation.
+- [x] Run typecheck and focused tests (145 tests passed), and verify desktop/mobile canvas layout, shared settings, task drawer, and batch page.
+- [x] Complete final browser checks for legacy/new switching and homepage prompt handoff, including shared provider, 2:3 ratio, 2K resolution, high quality, and three-image draft persistence.
+- [x] Complete a production diagnostic build with `--minify=false` (successful in 4m 35s).
+- [x] Complete the default compressed production build with bounded Go concurrency and memory; verify the legacy canvas starts at a finite zoom after switching from the new experience.

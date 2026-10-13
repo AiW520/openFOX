@@ -1,6 +1,6 @@
 {
   "version": "1.1.24",
-  "buildTime": "2026-10-04T08:07:15.903Z",
+  "buildTime": "2026-10-04T08:08:24.841Z",
   "gitCommit": "unknown",
   "changelog": [
     "preserve generated image dimensions and canvas rendering (#240)",

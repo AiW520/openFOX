@@ -131,6 +131,10 @@
   margin: 0 auto;
   padding: 32px 0 72px;
 }
+
+.new-experience__mobile-heading {
+  display: none;
+}
 .new-experience__intro {
   margin-bottom: 28px;
 }
@@ -649,6 +653,90 @@
   .new-experience__inspiration {
     margin-top: 28px;
   }
+}
+
+@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) and (max-height: 500px) {
+  .new-experience--compact {
+    min-height: 100%;
+    background: #f7f8fa;
+  }
+
+  .new-experience--compact .new-experience__header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    min-height: 56px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, .94);
+    backdrop-filter: blur(16px);
+  }
+
+  .new-experience--compact .new-experience__share-button span,
+  .new-experience--compact .new-experience__connection {
+    display: none;
+  }
+
+  .new-experience--compact .new-experience__workspace {
+    width: 100%;
+    max-width: none;
+    padding: 18px 14px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .new-experience--compact .new-experience__mobile-heading {
+    display: flex;
+    min-height: 96px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding: 0 2px 12px;
+  }
+
+  .new-experience--compact .new-experience__mobile-heading span {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .new-experience--compact .new-experience__mobile-heading h1 {
+    margin: 4px 0 0;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+
+  .new-experience--compact .new-experience__mobile-heading img {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  .new-experience--compact .new-experience__composer {
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
+  }
+
+  .new-experience--compact .new-experience__composer-header {
+    display: block;
+    padding: 12px 12px 0;
+  }
+
+  .new-experience--compact .new-experience__type-tabs {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+
+  .new-experience--compact .new-experience__type-tabs::-webkit-scrollbar { display: none; }
+  .new-experience--compact .new-experience__type-tabs button { min-height: 42px; flex: 0 0 auto; }
+  .new-experience--compact .new-experience__optimize--top { margin: 12px 0 0; }
+  .new-experience--compact .new-experience__prompt-row { padding: 14px 12px; }
+  .new-experience--compact .new-experience__prompt-row textarea { min-height: 116px; padding: 14px; border-radius: 14px; }
+  .new-experience--compact .new-experience__start { width: 100%; min-height: 48px; justify-content: center; }
+  .new-experience--compact .new-experience__controls { display: grid; grid-template-columns: 1fr 1fr; padding: 12px; }
+  .new-experience--compact .new-experience__control--model { grid-column: 1 / -1; width: 100%; }
+  .new-experience--compact .new-experience__canvas-shortcut { grid-column: 1 / -1; width: 100%; min-height: 46px; justify-content: center; }
+  .new-experience--compact .new-experience__composer-note { padding: 10px 2px; font-size: 11px; }
 }
 
 // Keep the complete composer in the first view on shorter desktop windows.

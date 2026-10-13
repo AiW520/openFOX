@@ -6,6 +6,7 @@
  */
 
 import { geminiSettings } from '../utils/settings-manager';
+import { publisherAwareFetch } from './publisher-transport';
 import { createLogger } from '@aitu/utils';
 import {
   getCharacterModel,
@@ -68,7 +69,7 @@ class CharacterAPIService {
       formData.append('character_timestamps', params.characterTimestamps);
     }
 
-    const response = await fetch(`${this.baseUrl}/v1/videos`, {
+    const response = await publisherAwareFetch(apiKey, `${this.baseUrl}/v1/videos`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -103,7 +104,7 @@ class CharacterAPIService {
       throw new Error('API Key 未配置');
     }
 
-    const response = await fetch(`${this.baseUrl}/v1/videos/${characterId}`, {
+    const response = await publisherAwareFetch(apiKey, `${this.baseUrl}/v1/videos/${characterId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

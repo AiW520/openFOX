@@ -1827,12 +1827,12 @@
     padding: 0;
 
     .settings-dialog__layout {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 14px;
     }
 
     .settings-dialog__workspace {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 14px;
 
       &--show-sidebar {
@@ -2571,5 +2571,9 @@
       width: 100%;
       justify-content: center;
     }
+
+    &__provider-group-heading { flex-wrap: wrap; gap: 8px; }
+    &__provider-group-heading > * { max-width: 100%; }
+    &__provider-group-heading .settings-dialog__sidebar-summary-action { width: 100%; }
   }
 }

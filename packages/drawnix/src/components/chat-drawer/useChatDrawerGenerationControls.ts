@@ -178,6 +178,7 @@ export function useChatDrawerGenerationControls(
   const selectedParamScopeRef = useRef(
     `${generationType}:${getSelectionKey(selectedModel, selectedModelRef)}`
   );
+  const publisherImageDefaultAppliedRef = useRef(false);
   const lastIncomingStateRef = useRef({
     sessionId,
     state: sessionGenerationState,
@@ -218,6 +219,22 @@ export function useChatDrawerGenerationControls(
     },
     []
   );
+
+  const publisherImageDefault = useMemo(() => {
+    if (generationType !== 'image') return undefined;
+    const route = resolveInvocationRoute('image');
+    if (route.profileId !== 'publisher-shared') return undefined;
+    return (
+      currentModels.find(
+        (model) =>
+          model.id === 'gpt-image-2.5' &&
+          model.sourceProfileId === 'publisher-shared'
+      ) ||
+      currentModels.find(
+        (model) => model.id === route.modelId && model.sourceProfileId === route.profileId
+      )
+    );
+  }, [currentModels, generationType]);
 
   const compatibleParams = useMemo(() => {
     if (generationType === 'agent') return [];
@@ -295,11 +312,15 @@ export function useChatDrawerGenerationControls(
     }
 
     const nextModelConfig =
+      (!publisherImageDefaultAppliedRef.current && !sessionGenerationState
+        ? publisherImageDefault
+        : undefined) ||
       findMatchingSelectableModel(
         currentModels,
         selectedModel,
         selectedModelRef
       ) || resolvePreferredModelSelection(generationType, currentModels);
+    if (publisherImageDefault) publisherImageDefaultAppliedRef.current = true;
     if (
       nextModelConfig &&
       getSelectionKey(selectedModel, selectedModelRef) !==
@@ -415,6 +436,7 @@ export function useChatDrawerGenerationControls(
     sessionGenerationState,
     sessionId,
     resolvePreferredModelSelection,
+    publisherImageDefault,
     selectedCount,
     selectedModel,
     selectedModelRef,
@@ -423,6 +445,7 @@ export function useChatDrawerGenerationControls(
 
   const applyModelSelection = useCallback(
     (model: ModelConfig) => {
+      if (model.type === 'image') publisherImageDefaultAppliedRef.current = true;
       const nextGenerationType = resolveGenerationTypeForModelSelection(
         generationType,
         model.type

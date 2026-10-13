@@ -4,6 +4,7 @@ import type {
   ProviderTransportRequest,
   ResolvedProviderContext,
 } from './types';
+import { isPublisherCredential, preparePublisherRequest } from '../publisher-transport';
 import {
   isTuziRequestRecoveryBaseUrl,
   isTrustedTuziApiBaseUrl,
@@ -712,6 +713,34 @@ export class ProviderTransport {
       ...request,
       signal: timeoutControl.signal,
     });
+    if (isPublisherCredential(context.apiKey)) {
+      const publisherRequest = preparePublisherRequest(
+        context.apiKey, prepared.url, prepared.init
+      );
+      try {
+        const response = await (request.fetcher || fetch)(
+          publisherRequest.url, publisherRequest.init
+        );
+        await request.onResponse?.(response);
+        if (request.controlledResponseBody) {
+          providerResponseReads.set(response, {
+            signal: timeoutControl.signal,
+            upstreamSignal: request.signal,
+            timeoutMs: request.timeoutMs,
+            didTimeout: timeoutControl.didTimeout,
+            cleanup: timeoutControl.cleanup,
+            allowImageSubmissionOutcomeUnknown: false,
+          });
+        } else {
+          timeoutControl.cleanup();
+        }
+        return response;
+      } catch (error) {
+        timeoutControl.cleanup();
+        if (timeoutControl.didTimeout()) throw createRequestTimeoutError(request.timeoutMs);
+        throw error;
+      }
+    }
     const recoverableImageSubmission = isRecoverableTuziImageSubmission(
       context,
       request

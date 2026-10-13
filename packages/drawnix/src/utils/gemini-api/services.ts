@@ -4,6 +4,7 @@
 
 import {
   ImageInput,
+  GeminiConfig,
   GeminiMessage,
   VideoGenerationOptions,
   ProcessedContent,
@@ -216,9 +217,10 @@ export async function generateImageWithGemini(
 /**
  * 使用 fetch 生成图片
  */
-async function generateImageDirect(
+export async function generateImageDirect(
   prompt: string,
   options: {
+    fetcher?: typeof fetch;
     size?: string;
     image?: string | string[];
     response_format?: 'url' | 'b64_json';
@@ -233,14 +235,15 @@ async function generateImageDirect(
     onResponse?: (response: Response) => void | Promise<void>;
   },
   modelName: string,
-  routeModel?: string | ModelRef | null
+  routeModel?: string | ModelRef | null,
+  configOverride?: GeminiConfig
 ): Promise<any> {
-  const { config: runtimeConfig } = buildRuntimeConfig(
+  const runtimeConfig = configOverride || buildRuntimeConfig(
     'image',
     routeModel || modelName,
     modelName,
     DEFAULT_CONFIG
-  );
+  ).config;
   const startTime = Date.now();
 
   // 开始记录 LLM API 调用（降级模式）

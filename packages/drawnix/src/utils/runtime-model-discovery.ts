@@ -33,6 +33,7 @@ import {
 import { sortModelsByDisplayPriority } from './model-sort';
 import { isTuziEmbeddedMode } from '../services/tuzi-embedded-config';
 import { hasTuziSystemToken } from '../services/tuzi-token-auth';
+import { publisherAwareFetch } from '../services/publisher-transport';
 
 const LEGACY_CACHE_KEY = 'drawnix-runtime-model-discovery';
 const MODEL_DISCOVERY_TIMEOUT_MS = 15_000;
@@ -183,7 +184,7 @@ async function fetchRemoteModelList(
   signal?.addEventListener('abort', abortFromCaller, { once: true });
   try {
     const requestUrl = getModelListRequestUrl(baseUrl);
-    const response = await fetch(requestUrl, {
+    const response = await publisherAwareFetch(apiKey, requestUrl, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
@@ -1179,7 +1180,7 @@ function cloneModelConfig(model: ModelConfig): ModelConfig {
   };
 }
 
-function adaptRuntimeModel(model: RemoteModelListItem): ModelConfig | null {
+export function adaptRuntimeModel(model: RemoteModelListItem): ModelConfig | null {
   if (!model?.id || typeof model.id !== 'string') {
     return null;
   }

@@ -8,6 +8,65 @@ import crypto from 'crypto';
 import { createRequire } from 'module';
 import { visualizer } from 'rollup-plugin-visualizer';
 
+function workflowAssetsPlugin(): Plugin {
+  const sourceDir = path.resolve(
+    __dirname,
+    '../../packages/drawnix/src/workflow-mode/web/public'
+  );
+  const files = (dir: string, prefix = ''): string[] => {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const relative = path.join(prefix, entry.name);
+      return entry.isDirectory()
+        ? files(path.join(dir, entry.name), relative)
+        : [relative];
+    });
+  };
+  const pluginManifest = () => JSON.stringify(
+    files(path.join(sourceDir, 'plugins'))
+      .filter((file) => file.endsWith('.js') && !file.includes(path.sep))
+      .sort()
+      .map((file) => `/workflow-assets/plugins/${file}`)
+  );
+  return {
+    name: 'opentu-workflow-assets',
+    configureServer(server) {
+      server.middlewares.use('/workflow-assets', (req, res, next) => {
+        let relative: string;
+        try {
+          relative = decodeURIComponent(new URL(req.url || '/', 'http://localhost').pathname).replace(/^\//, '');
+        } catch {
+          res.statusCode = 400;
+          return res.end();
+        }
+        if (relative === 'plugins/index.json') {
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(pluginManifest());
+        }
+        const file = path.resolve(sourceDir, relative);
+        const fromSource = path.relative(sourceDir, file);
+        if (fromSource === '..' || fromSource.startsWith(`..${path.sep}`) || path.isAbsolute(fromSource) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return next();
+        res.setHeader('Cache-Control', 'no-cache');
+        const types: Record<string, string> = {
+          '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
+          '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css',
+        };
+        res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
+        res.end(fs.readFileSync(file));
+      });
+    },
+    generateBundle() {
+      for (const relative of files(sourceDir)) {
+        if (relative === path.join('plugins', 'index.json')) continue;
+        this.emitFile({ type: 'asset', fileName: `workflow-assets/${relative.replaceAll(path.sep, '/')}`, source: fs.readFileSync(path.join(sourceDir, relative)) });
+      }
+      this.emitFile({ type: 'asset', fileName: 'workflow-assets/plugins/index.json', source: pluginManifest() });
+    },
+  };
+}
+
 const require = createRequire(import.meta.url);
 const workspaceRoot = path.resolve(__dirname, '../..');
 const devCacheNamespace = crypto
@@ -1046,7 +1105,7 @@ function deferEntryAssetsPlugin(): Plugin {
         )) as string;
         const deferredTags: string[] = [];
         const assetTagPattern =
-          /^[ \t]*(<script\b[^>]*type="module"[^>]*src="\.\/assets\/[^"]+"[^>]*><\/script>|<link\b[^>]*rel="stylesheet"[^>]*href="\.\/assets\/[^"]+"[^>]*>)\s*$/gm;
+          /^[ \t]*(<script\b[^>]*type="module"[^>]*src="(?:\.\/|\/)assets\/[^"]+"[^>]*><\/script>|<link\b[^>]*rel="stylesheet"[^>]*href="(?:\.\/|\/)assets\/[^"]+"[^>]*>)\s*$/gm;
 
         const strippedHtml = html.replace(assetTagPattern, (_match, tag) => {
           deferredTags.push(tag.trim());
@@ -1074,6 +1133,34 @@ const isWatchMode = process.argv.includes('--watch');
 const isServeMode = process.argv.includes('serve');
 const reactNodeEnv = isWatchMode || isServeMode ? 'development' : 'production';
 
+// Local dev mirrors the publisher build so the trial gate is visible on the
+// usual 7200/7206 URL. Set VITE_PERSONAL_MODE=1 to work without the gate.
+const publisherDevMode =
+  process.env.VITE_PUBLISHER_MODE === '1' ||
+  (isServeMode && process.env.VITE_PERSONAL_MODE !== '1');
+const publisherProxyTarget =
+  process.env.OPENTU_PUBLISHER_PROXY_TARGET ||
+  (publisherDevMode ? 'https://op.47.107.92.13.nip.io' : undefined);
+const publisherDevProxy: ProxyOptions | undefined = publisherProxyTarget ? {
+  target: publisherProxyTarget,
+  changeOrigin: true,
+  configure: (proxy) => {
+    const targetOrigin = new URL(publisherProxyTarget).origin;
+    const isLoopback = (host?: string) => /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(host || '');
+    proxy.on('proxyReq', (request, incoming) => {
+      if (isLoopback(incoming.headers.host) && incoming.headers.origin === `http://${incoming.headers.host}`) {
+        request.setHeader('Origin', targetOrigin);
+      }
+    });
+    proxy.on('proxyRes', (response, incoming) => {
+      // HTTPS trial sessions also work on the explicitly enabled HTTP loopback proxy.
+      if (isLoopback(incoming.headers.host) && response.headers['set-cookie']) {
+        response.headers['set-cookie'] = response.headers['set-cookie'].map(cookie => cookie.replace(/;\s*Secure\b/gi, ''));
+      }
+    });
+  },
+} : undefined;
+
 export default defineConfig({
   root: __dirname,
   cacheDir: `../../node_modules/.vite/apps/web-${devCacheNamespace}`,
@@ -1083,6 +1170,11 @@ export default defineConfig({
 
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    ...(isServeMode ? {
+      'import.meta.env.VITE_PUBLISHER_MODE': JSON.stringify(
+        publisherDevMode ? '1' : '0'
+      ),
+    } : {}),
     'process.env.NODE_ENV': JSON.stringify(reactNodeEnv),
     __APP_VERSION__: JSON.stringify(appVersion),
     // Vue feature flags - @milkdown/crepe 内部使用了 Vue，需要定义这些编译时标志
@@ -1099,6 +1191,10 @@ export default defineConfig({
     port: DEV_SERVER_PORT,
     host: process.env.OPENTU_HOST || 'localhost',
     proxy: {
+      ...(publisherDevProxy ? {
+        '/api/publisher/': publisherDevProxy,
+        '/publisher': publisherDevProxy,
+      } : {}),
       '/__opentu_tuzi_session__/': {
         target: TUZI_SESSION_PROXY_TARGET,
         changeOrigin: true,
@@ -1124,6 +1220,7 @@ export default defineConfig({
   },
 
   plugins: [
+    workflowAssetsPlugin(),
     react(),
     nxViteTsPaths(),
     visualizer({
@@ -1138,7 +1235,9 @@ export default defineConfig({
   ],
 
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: [
+      { find: /^@\/(.*)$/, replacement: path.resolve(__dirname, '../../packages/drawnix/src/workflow-mode/web/src/$1') },
       ...diagramEngineAliases,
       {
         find: /^tdesign-react$/,
@@ -1148,7 +1247,6 @@ export default defineConfig({
         ),
       },
     ],
-    dedupe: ['react', 'react-dom'],
   },
 
   worker: {

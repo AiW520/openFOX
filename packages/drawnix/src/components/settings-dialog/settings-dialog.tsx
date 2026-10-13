@@ -21,8 +21,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  Eye,
-  EyeOff,
   FlaskConical,
   Loader2,
   Plus,
@@ -33,6 +31,7 @@ import {
 } from 'lucide-react';
 import { LS_KEYS } from '../../constants/storage-keys';
 import { ModelDiscoveryDialog } from './model-discovery-dialog';
+import { ProviderApiKeyField } from './provider-api-key-field';
 import { PricingFieldGroup } from './pricing-field-group';
 import { useModelPriceText, useModelMeta } from '../../hooks/use-model-pricing';
 import {
@@ -1212,7 +1211,6 @@ export const SettingsDialog = ({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<ModelType>>(
     new Set()
   );
-  const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
   const [endpointSelectionMode, setEndpointSelectionMode] =
     useState<EndpointSelectionMode>('auto');
   const [selectedEndpointUrl, setSelectedEndpointUrl] = useState(() =>
@@ -1344,10 +1342,6 @@ export const SettingsDialog = ({
   const activeEndpoint =
     endpointOptions.find((endpoint) => endpoint.url === selectedEndpointUrl) ||
     bestEndpoint;
-
-  useEffect(() => {
-    setIsApiKeyVisible(false);
-  }, [selectedProfile?.id]);
 
   useEffect(() => {
     const target = dialogRef.current;
@@ -1516,7 +1510,6 @@ export const SettingsDialog = ({
       return;
     }
 
-    setIsApiKeyVisible(false);
     const nextProfiles = cloneValue(providerProfilesSettings.get());
     const nextPresets = cloneValue(invocationPresetsSettings.get());
     const nextActivePresetId =
@@ -1569,6 +1562,8 @@ export const SettingsDialog = ({
 
     const nextActiveView: SettingsView = tuziMode || accountEntryRequestedRef.current
       ? 'tuzi-account'
+      : pendingProviderIntent?.action === 'select' || pendingProviderIntent?.action === 'create'
+      ? 'providers'
       : initialView;
     setActiveView(nextActiveView);
     setCompactProviderMode(
@@ -3696,78 +3691,15 @@ export const SettingsDialog = ({
                   <InfoCircleIcon className="settings-dialog__tooltip-icon" />
                 </HoverTip>
               </div>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'center',
-                  width: '100%',
-                  flexDirection: isCompactLayout ? 'column' : 'row',
-                }}
-              >
-                <div
-                  className="settings-dialog__secret-input-wrap"
-                  style={{ flex: isCompactLayout ? 'none' : 1 }}
-                >
-                  <input
-                    type={isApiKeyVisible ? 'text' : 'password'}
-                    className="settings-dialog__input settings-dialog__secret-input"
-                    value={selectedProfile.apiKey}
-                    onChange={(event) =>
-                      updateProfile(selectedProfile.id, (profile) => ({
-                        ...profile,
-                        apiKey: event.target.value,
-                      }))
-                    }
-                    autoComplete="off"
-                  />
-                  <HoverTip
-                    content={isApiKeyVisible ? '隐藏 API Key' : '查看 API Key'}
-                    showArrow={false}
-                  >
-                    <button
-                      type="button"
-                      className="settings-dialog__secret-toggle"
-                      aria-label={
-                        isApiKeyVisible ? '隐藏 API Key' : '查看 API Key'
-                      }
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setIsApiKeyVisible((visible) => !visible)}
-                    >
-                      {isApiKeyVisible ? (
-                        <EyeOff size={16} />
-                      ) : (
-                        <Eye size={16} />
-                      )}
-                    </button>
-                  </HoverTip>
-                </div>
-                <button
-                  type="button"
-                  className="settings-dialog__button settings-dialog__button--fetch"
-                  style={{
-                    whiteSpace: 'nowrap',
-                    height: isCompactLayout ? '42px' : '32px',
-                    width: isCompactLayout ? '100%' : 'auto',
-                  }}
-                  onClick={handleFetchModels}
-                  disabled={
-                    !canManageModels || runtimeState.status === 'loading'
-                  }
-                >
-                  {runtimeState.status === 'loading' ? (
-                    <>
-                      <Loader2
-                        size={15}
-                        className="settings-dialog__button-spinner"
-                      />
-                      同步中
-                    </>
-                  ) : (
-                    '获取模型'
-                  )}
-                </button>
-              </div>
+              <ProviderApiKeyField
+                key={selectedProfile.id}
+                value={selectedProfile.apiKey}
+                onChange={(apiKey) => updateProfile(selectedProfile.id, (profile) => ({ ...profile, apiKey }))}
+                onFetchModels={handleFetchModels}
+                compact={isCompactLayout}
+                loading={runtimeState.status === 'loading'}
+                disabled={!canManageModels}
+              />
             </div>
           </div>
         </div>

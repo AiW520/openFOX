@@ -29,6 +29,12 @@
   height: 100vh;
 }
 
+.compactRoot {
+  --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  min-height: 0;
+  height: var(--opentu-visible-height, 100dvh);
+}
+
 .experienceChrome {
   position: fixed;
   z-index: 2147481000;

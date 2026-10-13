@@ -25,6 +25,7 @@ export type AIInputPrefillSource =
   | 'new-experience';
 
 export interface AIInputPrefillEventDetail {
+  target?: 'workflow';
   generationType: GenerationType;
   prompt: string;
   images?: AIInputPrefillImage[];
@@ -39,8 +40,9 @@ export interface AIInputPrefillEventDetail {
 export const AI_INPUT_FOCUS_EVENT = 'aitu:ai-input-focus';
 export const AI_INPUT_PREFILL_EVENT = 'aitu:ai-input-prefill';
 
-let prefillConsumerCount = 0;
-let pendingPrefill: AIInputPrefillEventDetail | null = null;
+type PrefillTarget = 'default' | 'workflow';
+const prefillConsumerCounts = new Map<PrefillTarget, number>();
+const pendingPrefills = new Map<PrefillTarget, AIInputPrefillEventDetail>();
 
 export function resolvePptExplainerFrameIds(
   orderedFrameIds: readonly string[],
@@ -81,15 +83,18 @@ export function requestAIInputPrefill(detail: AIInputPrefillEventDetail): void {
     return;
   }
 
-  if (prefillConsumerCount === 0) {
-    pendingPrefill = detail;
+  const target = detail.target || 'default';
+  if (!prefillConsumerCounts.get(target)) {
+    pendingPrefills.set(target, detail);
     return;
   }
+  pendingPrefills.delete(target);
   window.dispatchEvent(new CustomEvent(AI_INPUT_PREFILL_EVENT, { detail }));
 }
 
 export function registerAIInputPrefillConsumer(
-  consumer: (detail: AIInputPrefillEventDetail) => void
+  consumer: (detail: AIInputPrefillEventDetail) => void,
+  target: PrefillTarget = 'default'
 ): () => void {
   if (typeof window === 'undefined') {
     return () => undefined;
@@ -97,20 +102,25 @@ export function registerAIInputPrefillConsumer(
 
   const handlePrefill = (event: Event) => {
     const detail = (event as CustomEvent<AIInputPrefillEventDetail>).detail;
-    if (detail) consumer(detail);
+    if (detail && (detail.target || 'default') === target) consumer(detail);
   };
 
-  prefillConsumerCount += 1;
+  let active = true;
+  prefillConsumerCounts.set(target, (prefillConsumerCounts.get(target) || 0) + 1);
   window.addEventListener(AI_INPUT_PREFILL_EVENT, handlePrefill);
 
-  const queued = pendingPrefill;
-  pendingPrefill = null;
+  const queued = pendingPrefills.get(target);
   if (queued) {
-    queueMicrotask(() => consumer(queued));
+    queueMicrotask(() => {
+      if (!active || pendingPrefills.get(target) !== queued) return;
+      pendingPrefills.delete(target);
+      consumer(queued);
+    });
   }
 
   return () => {
+    active = false;
     window.removeEventListener(AI_INPUT_PREFILL_EVENT, handlePrefill);
-    prefillConsumerCount = Math.max(0, prefillConsumerCount - 1);
+    prefillConsumerCounts.set(target, Math.max(0, (prefillConsumerCounts.get(target) || 0) - 1));
   };
 }

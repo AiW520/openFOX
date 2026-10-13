@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OpenTu · 发布者设置</title>
+  <link rel="stylesheet" href="/publisher/style.css">
+  <script src="/publisher/admin.js" defer></script>
+  <link rel="stylesheet" href="/publisher/assets/provider-editor.css">
+  <script type="module" src="/publisher/assets/provider-editor.js"></script>
+</head>
+<body>
+  <div id="loginShell" class="login-shell">
+    <div class="login-brand">
+      <img class="brand-mark" src="/icons/favicon-32x32.png" alt="OpenTu">
+      <div class="brand-copy"><strong>OpenTu</strong><span>Publisher Console</span></div>
+      <div class="brand-foot"><span class="status-dot"></span> 发布者专属管理入口</div>
+    </div>
+    <form id="login" class="login-panel">
+      <div class="eyebrow">PUBLISHER CONSOLE</div>
+      <h1>欢迎回来</h1>
+      <p class="login-subtitle">管理共享模型、访问权限与调用额度。</p>
+      <label>管理员密码<input id="password" type="password" autocomplete="current-password" required maxlength="512" placeholder="输入管理员密码"></label>
+      <button class="primary login-submit" type="submit"><span>进入控制台</span><span data-icon="ArrowRight"></span></button>
+      <p id="loginMessage" class="login-error" role="alert"></p>
+      <p class="security-note"><span data-icon="ShieldCheck"></span> API Key 仅保存在服务器，不会发送给测试者。</p>
+    </form>
+  </div>
+  <div id="workspace" class="console-shell" hidden>
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="/?experience=new"><img class="brand-mark small" src="/icons/favicon-32x32.png" alt=""><span><strong>OpenTu</strong><small>Publisher Console</small></span></a>
+      <nav id="consoleNav" aria-label="管理导航">
+        <a class="nav-item active" href="#overview" aria-current="location"><span class="nav-icon" data-icon="LayoutDashboard"></span> 总览</a>
+        <a class="nav-item" href="#service"><span class="nav-icon" data-icon="Server"></span> 模型服务</a>
+        <a class="nav-item" href="#models-section"><span class="nav-icon" data-icon="Boxes"></span> 模型目录</a>
+        <a class="nav-item" href="#limits-section"><span class="nav-icon" data-icon="Gauge"></span> 使用限额</a>
+        <a class="nav-item" href="#access-section"><span class="nav-icon" data-icon="KeyRound"></span> 访问权限</a>
+      </nav>
+      <div class="sidebar-bottom"><a href="/?experience=new" target="_blank" rel="noopener"><span data-icon="ExternalLink"></span> 打开测试站</a><button id="logout" hidden><span data-icon="LogOut"></span> 退出登录</button></div>
+    </aside>
+    <main class="console-main">
+      <header class="console-header"><button id="menuToggle" class="menu-toggle" aria-label="打开导航" aria-expanded="false" aria-controls="consoleNav" title="打开导航"><span data-icon="Menu"></span></button><div><div id="breadcrumb" class="breadcrumb">控制台 / 总览</div><h1>共享模型控制台</h1></div><div class="header-actions"><span id="serviceStatus" class="header-status"><span class="status-dot"></span><span id="statusText">共享未开放</span></span><a class="external-link" href="/?experience=new" target="_blank" rel="noopener">测试站 <span data-icon="ExternalLink"></span></a></div></header>
+      <div class="console-content">
+        <section id="overview" class="overview-row"><div><div class="eyebrow">OVERVIEW</div><h2>发布者工作台</h2><p>模型、用量与访问权限</p></div><span class="admin-badge">管理员</span></section>
+        <div id="usage" class="usage-summary"><div><span>今日调用</span><strong id="usageTotal">0 <small>/ 0</small></strong></div><div><span>生成中</span><strong id="usageActive">0</strong></div><div><span>等待队列</span><strong id="usageQueued">0</strong></div><div><span>查询中</span><strong id="usageQueries">0</strong></div><div><span>已配置模型</span><strong id="modelCount">0</strong></div></div>
+        <div id="message" class="notice" role="status" aria-live="polite"></div>
+        <form id="config">
+          <section id="service" class="console-section"><div class="section-heading"><div><h2>模型服务</h2><p>配置上游服务，API Key 只会存储在服务器端。</p></div><label class="switch-label"><input id="enabled" type="checkbox"><span class="switch"></span><span id="sharingLabel">开放共享</span></label></div><div class="field-grid"><label>显示名称<input id="name" maxlength="80" required></label><label>接口地址<select id="baseUrl"><option>https://api.tu-zi.com/coding/v1</option><option>https://api.tu-zi.com/v1</option><option>https://business.tu-zi.com/v1</option><option>https://test-business.tu-zi.com/v1</option></select></label><div class="field-wide"><label for="apiKey">API Key</label><div id="providerCredential"></div></div></div></section>
+          <section id="models-section" class="console-section"><div class="section-heading"><h2>模型目录</h2></div><div id="providerModels"></div></section>
+          <section id="limits-section" class="console-section"><div class="section-heading"><div><h2>使用限额</h2><p>限制共享服务的日常消耗，额度在服务器端执行。</p></div></div><div class="limit-grid"><label><span>每个 IP 每日调用</span><input id="dailyPerIp" type="number" min="1" max="1000" required><small>单个访客的每日上限</small></label><label><span>全站每日调用</span><input id="dailyTotal" type="number" min="1" max="10000" required><small>所有访客共享的每日上限</small></label><label><span>每个 IP 每分钟调用</span><input id="perMinute" type="number" min="1" max="60" required><small>防止短时间集中请求</small></label><label><span>同时生成</span><input id="concurrency" type="number" min="1" max="4" required><small>最多 8 个请求排队，等待上限 30 秒</small></label><label><span>同时查询任务</span><input id="queryConcurrency" type="number" min="1" max="4" required><small>任务查询的独立并发上限</small></label></div></section>
+          <div class="sticky-actions"><button class="primary" type="submit"><span data-icon="Save"></span> 保存设置</button><span>保存后立即对新请求生效</span></div>
+        </form>
+        <section id="access-section" class="console-section access-section"><div class="section-heading"><div><h2>访问权限</h2><p>测试者使用访问码进入工作台，不需要看到你的 API Key。</p></div></div><form id="rotate" class="code-form"><label>更新测试访问码<input id="code" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="至少 12 个字符" required></label><button class="secondary" type="submit">更新访问码</button></form></section>
+      </div>
+    </main>
+  </div>
+  <div id="publisherDialogs"></div>
+</body>
+</html>

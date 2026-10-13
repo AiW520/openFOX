@@ -4154,6 +4154,11 @@ function markUrlAsFailed(url: string): void {
 
 sw.addEventListener('fetch', (event: FetchEvent) => {
   const url = new URL(event.request.url);
+  // Publisher sessions and model responses must always come from the server.
+  if (url.origin === sw.location.origin &&
+      (url.pathname.startsWith('/api/publisher/') || url.pathname.startsWith('/publisher'))) {
+    return;
+  }
   const startTime = Date.now();
 
   // 只处理 http 和 https 协议的请求，忽略 chrome-extension、data、blob 等

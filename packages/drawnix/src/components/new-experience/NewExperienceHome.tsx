@@ -24,6 +24,8 @@ import { FeaturedContent } from './FeaturedContent';
 import { I18nProvider } from '../../i18n';
 import { requestAIInputPrefill } from '../../services/ai-input-ui-events';
 import './new-experience.scss';
+import { useCompactScreen } from '../../hooks/use-compact-screen';
+import { showcaseArtwork } from './showcase-artwork';
 
 const PromptOptimizeDialog = lazy(() =>
   import('../shared/PromptOptimizeDialog').then((module) => ({
@@ -72,6 +74,7 @@ export function NewExperienceHome({
   onOpenCanvas,
   onOpenSettings,
 }: NewExperienceHomeProps) {
+  const compactScreen = useCompactScreen();
   const [prompt, setPrompt] = useState('');
   const [shareState, setShareState] = useState('');
   const [isPromptOptimizeOpen, setIsPromptOptimizeOpen] = useState(false);
@@ -98,21 +101,25 @@ export function NewExperienceHome({
   const canSelectCount = activeType === 'image' || activeType === 'video';
   const hasAvailableModel = controls.currentModels.length > 0;
 
-  const handleStart = () => {
+  const openCanvasWithDraft = () => {
     const normalizedPrompt = prompt.trim();
-    if (!normalizedPrompt || !controls.selectedModel || isPromptOptimizeOpen)
-      return;
+    if (!normalizedPrompt || isPromptOptimizeOpen) return;
 
     requestAIInputPrefill({
+      target: 'workflow',
       generationType: controls.generationType,
       prompt: normalizedPrompt,
-      model: controls.selectedModel,
-      modelRef: controls.selectedModelRef,
+      model: controls.selectedModel || undefined,
+      modelRef: controls.selectedModel ? controls.selectedModelRef : null,
       params: controls.selectedParams,
       count: controls.selectedCount,
       source: 'new-experience',
     });
     onOpenCanvas();
+  };
+
+  const handleStart = () => {
+    if (controls.selectedModel) openCanvasWithDraft();
   };
 
   const handleShareSite = async () => {
@@ -145,7 +152,7 @@ export function NewExperienceHome({
   };
 
   return (
-    <main className="new-experience">
+    <main className={`new-experience${compactScreen ? ' new-experience--compact' : ''}`}>
       <header className="new-experience__header">
         <a
           className="new-experience__brand"
@@ -207,7 +214,10 @@ export function NewExperienceHome({
       </header>
 
       <section className="new-experience__workspace">
-        <FeaturedContent onOpenCanvas={onOpenCanvas} />
+        {compactScreen ? <div className="new-experience__mobile-heading">
+          <div><span>创作工作台</span><h1>OpenTu</h1></div>
+          <img src={showcaseArtwork.studio} alt="晨光创作工作室" width={88} height={88} />
+        </div> : <FeaturedContent onOpenCanvas={onOpenCanvas} />}
 
         <div className="new-experience__composer" ref={composerRef}>
           <div className="new-experience__composer-header">
@@ -268,6 +278,7 @@ export function NewExperienceHome({
                   event.nativeEvent.keyCode === 229
                 )
                   return;
+                if (compactScreen) return;
                 event.preventDefault();
                 if (!event.repeat) handleStart();
               }}
@@ -349,7 +360,11 @@ export function NewExperienceHome({
             <button
               type="button"
               className="new-experience__canvas-shortcut"
-              onClick={onOpenCanvas}
+              disabled={isPromptOptimizeOpen}
+              onClick={() => {
+                if (prompt.trim()) openCanvasWithDraft();
+                else onOpenCanvas();
+              }}
             >
               <Layers3 size={16} />
               {hasCanvasContent ? '继续当前画布' : '打开画布'}
@@ -357,15 +372,15 @@ export function NewExperienceHome({
             </button>
           </div>
         </div>
-        <div className="new-experience__composer-note">
+        {!compactScreen && <div className="new-experience__composer-note">
           <span id="new-home-handoff-hint">
             Enter 进入画布 · Shift+Enter
             换行。描述与设置会一起带入，确认后再生成。
           </span>
           <span>{currentBoardId ? '当前工作区' : '本地工作区'}</span>
-        </div>
+        </div>}
 
-        <ModelShowcase
+        {!compactScreen && <ModelShowcase
           imageModels={controls.imageModels}
           videoModels={controls.videoModels}
           textModels={controls.textModels}
@@ -383,7 +398,7 @@ export function NewExperienceHome({
             });
           }}
           onConfigure={onOpenSettings}
-        />
+        />}
       </section>
       {isPromptOptimizeOpen && (
         <Suspense fallback={<span role="status">正在打开提示词优化…</span>}>

@@ -1,0 +1,24 @@
+.publisher-model-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; color: #667085; }
+.publisher-selected-model { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2e6eb; }
+.publisher-selected-model > svg { flex: none; color: #16845b; }
+.publisher-selected-model > div { flex: 1; min-width: 0; }
+.publisher-selected-model strong, .publisher-selected-model small { display: block; overflow-wrap: anywhere; }
+.publisher-selected-model strong { font-size: 14px; font-weight: 500; color: #344054; }
+.publisher-selected-model small { color: #667085; font-size: 12px; }
+.publisher-model-type { color: #667085; font-size: 12px; flex: none; }
+.publisher-model-empty { color: #667085; padding: 20px 0; }
+.publisher-model-error { color: #b42318; margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+#providerCredential {
+  .settings-dialog__input { height: 42px; padding-right: 40px; }
+  .settings-dialog__secret-toggle { position: absolute; right: 4px; top: 3px; display: grid; place-items: center; height: 36px; width: 32px; border: 0; border-radius: 4px; color: #667085; background: transparent; }
+  .settings-dialog__button--fetch { display: flex; gap: 8px; align-items: center; height: 42px; padding: 0 16px; background: #175cd3; color: white; border: 0; border-radius: 5px; }
+  .settings-dialog__button-spinner { animation: publisher-spin 1s linear infinite; }
+}
+@keyframes publisher-spin { to { transform: rotate(360deg); } }
+#publisherDialogs .Dialog-overlay { z-index: 100; }
+#publisherDialogs .model-discovery-dialog { width: min(920px, calc(100vw - 32px)); height: min(800px, calc(100dvh - 48px)); border-radius: 8px; background: #fff; }
+@media (max-width: 600px) {
+  #providerCredential .provider-api-key-field { flex-direction: column; align-items: stretch; }
+  #providerCredential .settings-dialog__button--fetch { justify-content: center; }
+  #publisherDialogs .model-discovery-dialog { width: calc(100vw - 16px); height: calc(100dvh - 24px); padding: 16px 12px; }
+}

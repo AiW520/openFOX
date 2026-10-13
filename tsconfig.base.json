@@ -16,6 +16,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "@/*": ["packages/drawnix/src/workflow-mode/web/src/*"],
       "@drawnix/drawnix": ["packages/drawnix/src/index.ts"],
       "@drawnix/drawnix/runtime": ["packages/drawnix/src/runtime.ts"],
       "@aitu/utils": ["packages/utils/src/index.ts"],
