@@ -1,7 +1,47 @@
+## 1.1.29 (2026-10-17)
+
+### 🚀 Features
+
+- add dedicated Tuzi Flux 3 image adapter ([1f85b004](https://github.com/ljquan/opentu/commit/1f85b004))
+- 补齐 Gemini 别名和 Veo 参数并清理未支持字段 ([67055056](https://github.com/ljquan/opentu/commit/67055056))
+- add new OpenTu creative experience ([f0dfe852](https://github.com/ljquan/opentu/commit/f0dfe852))
+- initialize OpenTu from Tuzi handoff ([988b2729](https://github.com/ljquan/opentu/commit/988b2729))
+
+### 🩹 Fixes
+
+- restore automatic image loading ([e3e375d9](https://github.com/ljquan/opentu/commit/e3e375d9))
+- 补齐 Tuzi 模型 ID 的尺寸和画质参数 ([6564ee1c](https://github.com/ljquan/opentu/commit/6564ee1c))
+- align merged Tuzi session sync with postMessage onboarding ([a3117047](https://github.com/ljquan/opentu/commit/a3117047))
+
+### 🔧 Chores
+
+- preserve publisher, infinite canvas and mobile workspace before upstream sync ([479d9772](https://github.com/ljquan/opentu/commit/479d9772))
+- bump version to 1.1.28 ([3d84bb7c](https://github.com/ljquan/opentu/commit/3d84bb7c))
+- bump version to 1.1.24 ([e5ebc349](https://github.com/ljquan/opentu/commit/e5ebc349))
+- test: 同步 Suno v6 夹具并记录 PR 297 冲突复验 ([86a3d69a](https://github.com/ljquan/opentu/commit/86a3d69a))
+- docs(seedream): 更新 PR 增量验证与实测记录 ([c0e88fa9](https://github.com/ljquan/opentu/commit/c0e88fa9))
+- docs(media): 记录 PR 297 交付状态 ([96d56399](https://github.com/ljquan/opentu/commit/96d56399))
+- docs(media): 记录水印撤回及上游合并后的最终验证 ([48eda76f](https://github.com/ljquan/opentu/commit/48eda76f))
+
+### ❤️  Thank You
+
+- 李泓震 <15900797+AiW520@user.noreply.gitee.com>
+- gongchengtu <1817063960@qq.com>
+- 2040725155-star <2040725155@qq.com>
+- Jerry-George-Liang <205779645+Jerry-George-Liang@users.noreply.github.com>
+
 ## Unreleased
 
-- [调整] 统一 OpenTu 工作台入口，在首页和画布内选择自由画布或工作流画布，保留共享模型配置、描述参数传递和画布位置恢复。
+- [新增] 无限画布节点面板支持持久化的列表/缩略图视图、分组折叠、懒加载缩略图和桌面悬停/移动端点击预览，切换视图不改变聚焦、筛选或导出选择。
+- [优化] 共享画布加载与意图预加载，切换等待时保留当前页面，补齐启动、数据恢复和失败重试提示。
+- [新增] 首页精选卡片随正式版本自动同步更新摘要与分类详情，过滤未发布和已撤回版本。
+- [调整] 首页画布选择与创作类型紧凑对齐，优化“自由画布 / 无限画布”的选中样式与手机端间距。
+- [调整] 首页与两个画布的切换入口统一将“工作流画布”更名为“无限画布”。
+- [调整] 自由画布默认明亮主题采用米白底、白色工具栏与浅暖灰点阵，点阵随画布平移和缩放。
+- [新增] 两个画布接入 Real-ESRGAN 图片超分：原图即时保留，支持后台自动超分、手动 2×/4×、高清下载及刷新恢复。
+- [调整] 统一 OpenTu 工作台入口，在首页和画布内选择自由画布或无限画布，保留共享模型配置、描述参数传递和画布位置恢复。
 - [优化] 清理已替换的画布原型并隔离共享模型控件与聊天模块，避免首页提前加载聊天依赖。
+- [优化] 适配两个画布的稳定聚焦、缩放无关浮层、参考连线复制和本地存储降级；补齐 Gemini 参考图 MIME 识别、文本卡片复制与已生成图片恢复，避免失败恢复重复生图。
 
 ## 1.1.28 (2026-10-12)
 
