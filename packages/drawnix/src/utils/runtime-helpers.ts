@@ -29,6 +29,9 @@ export async function copyToClipboard(text: string): Promise<void> {
   }
 
   const textArea = document.createElement('textarea');
+  const activeElement = document.activeElement;
+  const selection = window.getSelection();
+  const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, i) => selection.getRangeAt(i).cloneRange()) : [];
   textArea.value = text;
   textArea.style.position = 'fixed';
   textArea.style.left = '-999999px';
@@ -38,9 +41,14 @@ export async function copyToClipboard(text: string): Promise<void> {
   textArea.select();
 
   try {
-    document.execCommand('copy');
+    if (!document.execCommand('copy')) throw new Error('复制失败，请重试');
   } finally {
     textArea.remove();
+    if (activeElement instanceof HTMLElement) activeElement.focus({ preventScroll: true });
+    if (selection) {
+      selection.removeAllRanges();
+      ranges.forEach(range => selection.addRange(range));
+    }
   }
 }
 

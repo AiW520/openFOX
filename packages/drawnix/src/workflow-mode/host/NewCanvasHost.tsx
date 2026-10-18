@@ -5,8 +5,14 @@ import { navigateWorkflow, subscribeWorkflowNavigation, getWorkflowNavigationSna
 import { WorkflowTasks } from '../web/src/components/layout/workflow-tasks';
 import './new-canvas-host.scss';
 import { useCompactScreen } from '../../hooks/use-compact-screen';
+import { createCachedLoader } from '../../utils/cached-loader';
+import { loadCanvasProject } from '../web/src/canvas-entry-loader';
 
-const WorkflowApp = lazy(() => import('../web/src/WorkflowApp').then(module => ({ default: module.WorkflowApp })));
+const loadWorkflowApp = createCachedLoader(() => import('../web/src/WorkflowApp').then(module => ({ default: module.WorkflowApp })));
+const WorkflowApp = lazy(loadWorkflowApp);
+export function preloadWorkflowCanvas() {
+    return Promise.all([loadWorkflowApp(), loadCanvasProject()]);
+}
 const PROJECT_MAP_KEY = 'opentu:workflow:board-projects';
 
 function readProjectMapping(): Record<string, string> {
@@ -64,8 +70,8 @@ export function NewCanvasHost({ boardId, onHome, onLegacy, onProviderSettings }:
         <header className="new-canvas-host__header" data-testid="workbench-topbar">
             <button type="button" className="new-canvas-host__brand" onClick={onHome} title="返回工作台首页"><ArrowLeft size={15} /><span>OpenTu</span></button>
             <div className="new-canvas-host__version" role="group" aria-label="切换画布">
-                <button type="button" aria-pressed="false" onClick={onLegacy}>自由画布</button>
-                <button type="button" aria-pressed="true">工作流画布</button>
+                <button type="button" data-canvas-entry="legacy" aria-pressed="false" onClick={onLegacy}>自由画布</button>
+                <button type="button" data-canvas-entry="new" aria-pressed="true">无限画布</button>
             </div>
             <nav aria-label="画布快捷操作">
                 <button type="button" data-testid="workbench-config" onClick={() => { window.dispatchEvent(new CustomEvent('opentu:workflow:close-overlays')); onProviderSettings(); }}><SlidersHorizontal size={16} /><span>配置</span></button>

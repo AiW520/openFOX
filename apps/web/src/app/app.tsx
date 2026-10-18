@@ -5,7 +5,9 @@ import {
   useRef,
   lazy,
   Suspense,
+  type SyntheticEvent,
 } from 'react';
+import { LoaderCircle, RefreshCw, X } from 'lucide-react';
 import {
   WorkspaceService,
   migrateToWorkspace,
@@ -41,12 +43,15 @@ import {
 import styles from './app.module.scss';
 import { createExperienceNavigation } from './experience-navigation';
 import { useCompactScreen } from '../../../../packages/drawnix/src/hooks/use-compact-screen';
+import { createCachedLoader } from '../../../../packages/drawnix/src/utils/cached-loader';
+import { useEntryTransition, type EntryTarget } from './use-entry-transition';
 
-const NewExperienceHome = lazy(() =>
+const loadHome = createCachedLoader(() =>
   import('../../../../packages/drawnix/src/components/new-experience/NewExperienceHome').then((module) => ({
     default: module.NewExperienceHome,
   }))
 );
+const NewExperienceHome = lazy(loadHome);
 const NewExperienceSettingsOverlay = lazy(() =>
   import('../../../../packages/drawnix/src/components/new-experience/NewExperienceSettingsOverlay').then((module) => ({
     default: module.NewExperienceSettingsOverlay,
@@ -55,16 +60,42 @@ const NewExperienceSettingsOverlay = lazy(() =>
 
 importLocalTuziCredentials();
 
-const Drawnix = lazy(() =>
+const loadDrawnix = createCachedLoader(() =>
   import('@drawnix/drawnix').then((module) => ({
     default: module.Drawnix,
   }))
 );
+const Drawnix = lazy(loadDrawnix);
+const loadNewCanvasHost = createCachedLoader(() =>
+  import('../../../../packages/drawnix/src/workflow-mode/host/NewCanvasHost').then(module => ({
+    default: module.NewCanvasHost,
+    preload: module.preloadWorkflowCanvas,
+  }))
+);
+const NewCanvasHost = lazy(loadNewCanvasHost);
+
+function preloadCanvasEntry(version: ExperienceVersion): Promise<unknown> {
+  return version === 'new' ? loadNewCanvasHost().then(module => module.preload()) : loadDrawnix();
+}
+
+function preloadEntry(target: EntryTarget): Promise<unknown> {
+  return target === 'home' ? loadHome() : preloadCanvasEntry(target);
+}
+
+const entryNames = { home: '工作台', legacy: '自由画布', new: '无限画布' };
+
+function CanvasEntryLoading({ target }: { target: EntryTarget }) {
+  return <div className={styles.entryLoading} data-testid="entry-loading" role="status" aria-live="polite">
+    <div className={styles.entryLoadingHeader} aria-hidden="true"><strong>OpenTu</strong><span>{entryNames[target]}</span></div>
+    <div className={styles.entryLoadingBody}>
+      <LoaderCircle className={styles.loadingIndicator} size={20} aria-hidden="true" />
+      <span>正在打开{entryNames[target]}...</span>
+    </div>
+  </div>;
+}
 
 // 节流保存 viewport 的间隔（毫秒）
 const VIEWPORT_SAVE_DEBOUNCE = 500;
-const NewCanvasHost = lazy(() => import('../../../../packages/drawnix/src/workflow-mode/host/NewCanvasHost').then(module => ({ default: module.NewCanvasHost })));
-
 // URL 参数名
 const BOARD_URL_PARAM = 'board';
 const BOARD_CLOSE_SNAPSHOT_KEY = 'aitu_board_close_snapshot_v1';
@@ -244,6 +275,7 @@ export function App() {
     () => !window.location.pathname.startsWith('/workflow') && new URLSearchParams(window.location.search).get('view') !== 'canvas' && new URLSearchParams(window.location.search).get('experience') !== 'legacy'
   );
   const [showHomeSettings, setShowHomeSettings] = useState(false);
+  const { pending, failed, navigate, cancel } = useEntryTransition(preloadEntry);
   const isNewExperience = experienceVersion === 'new';
   const isNewHome = showNewHome;
   useEffect(() => {
@@ -262,6 +294,7 @@ export function App() {
   }, [compactScreen]);
   useEffect(() => {
     const sync = () => {
+      cancel();
       const url = new URL(window.location.href);
       const workflow = url.pathname === '/workflow' || url.pathname.startsWith('/workflow/');
       const version = workflow ? 'new' : url.searchParams.get('experience');
@@ -270,29 +303,40 @@ export function App() {
     };
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
-  }, []);
+  }, [cancel]);
   useEffect(() => {
     writeExperienceVersion(experienceVersion);
   }, [experienceVersion]);
   const [experienceNavigation] = useState(() => createExperienceNavigation());
   const switchExperience = (version: ExperienceVersion) => {
-    const url = experienceNavigation(new URL(window.location.href), version, experienceVersion);
-    setExperienceVersion(version);
-    setShowNewHome(!url.pathname.startsWith('/workflow') && url.searchParams.get('view') !== 'canvas');
-    setShowHomeSettings(false);
-    window.history.replaceState(window.history.state, '', url);
+    void navigate(version, () => {
+      const url = experienceNavigation(new URL(window.location.href), version, experienceVersion);
+      setExperienceVersion(version);
+      setShowNewHome(!url.pathname.startsWith('/workflow') && url.searchParams.get('view') !== 'canvas');
+      setShowHomeSettings(false);
+      window.history.replaceState(window.history.state, '', url);
+    });
   };
   const openWorkbenchHome = () => {
-    if (experienceVersion === 'new' && !showNewHome) {
-      experienceNavigation(new URL(window.location.href), 'legacy', 'new');
+    void navigate('home', () => {
+      if (experienceVersion === 'new' && !showNewHome) {
+        experienceNavigation(new URL(window.location.href), 'legacy', 'new');
+      }
+      setShowNewHome(true);
+      setShowHomeSettings(false);
+      const url = new URL(window.location.href);
+      url.pathname = '/';
+      url.searchParams.delete('experience');
+      url.searchParams.delete('view');
+      window.history.pushState(window.history.state, '', url);
+    });
+  };
+  const preloadIntent = (event: SyntheticEvent) => {
+    if (!(event.target instanceof Element)) return;
+    const target = event.target.closest<HTMLElement>('[data-canvas-entry]')?.dataset.canvasEntry;
+    if ((target === 'legacy' || target === 'new') && (isNewHome || target !== experienceVersion)) {
+      void preloadCanvasEntry(target).catch(() => undefined);
     }
-    setShowNewHome(true);
-    setShowHomeSettings(false);
-    const url = new URL(window.location.href);
-    url.pathname = '/';
-    url.searchParams.delete('experience');
-    url.searchParams.delete('view');
-    window.history.pushState(window.history.state, '', url);
   };
   const [isLoading, setIsLoading] = useState(true);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -302,6 +346,14 @@ export function App() {
   const isDataReadyRef = useRef(false);
   const [showCrashDialog, setShowCrashDialog] = useState(false);
   const [initError, setInitError] = useState<Error | null>(null);
+  useEffect(() => {
+    if (showCrashDialog || initError) return;
+    const canvasRoute = /^\/workflow\/?$|^\/workflow\/canvas(?:\/|$)/.test(window.location.pathname);
+    const load = !isNewHome && experienceVersion === 'new' && !canvasRoute && window.location.pathname.startsWith('/workflow/')
+      ? loadNewCanvasHost()
+      : preloadEntry(isNewHome ? 'home' : experienceVersion);
+    void load.catch(() => undefined);
+  }, [experienceVersion, initError, isNewHome, showCrashDialog]);
   const [value, setValue] = useState<{
     children: PlaitElement[];
     viewport?: Viewport;
@@ -1073,36 +1125,32 @@ export function App() {
   }
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-        }}
-      >
-        加载中...
-      </div>
-    );
+    return <CanvasEntryLoading target={isNewHome ? 'home' : experienceVersion} />;
   }
 
   return (
-    <div className={`${isNewHome ? styles.experienceRoot : styles.canvasRoot} ${compactScreen ? styles.compactRoot : ''}`}>
+    <div className={`${isNewHome ? styles.experienceRoot : styles.canvasRoot} ${compactScreen ? styles.compactRoot : ''}`}
+      onPointerOverCapture={preloadIntent} onFocusCapture={preloadIntent}
+      onClickCapture={(event) => {
+        if (!(event.target instanceof Element)) return;
+        const target = event.target.closest<HTMLElement>('[data-canvas-entry]')?.dataset.canvasEntry;
+        if (!isNewHome && target === experienceVersion) cancel();
+      }}>
       {isNewHome && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<CanvasEntryLoading target="home" />}>
           <NewExperienceHome
             currentBoardId={currentBoardId}
             hasCanvasContent={value.children.length > 0}
             canvasType={experienceVersion}
-            onSelectCanvas={setExperienceVersion}
+            onSelectCanvas={(version) => { cancel(); setExperienceVersion(version); }}
+            onPreloadCanvas={preloadCanvasEntry}
             onOpenCanvas={() => switchExperience(experienceVersion)}
             onOpenSettings={() => setShowHomeSettings(true)}
           />
         </Suspense>
       )}
-      {showHomeSettings && <Suspense fallback={null}><NewExperienceSettingsOverlay initialView="providers" onClose={() => setShowHomeSettings(false)} /></Suspense>}
-      {isNewExperience && !isNewHome ? <Suspense fallback={null}>
+      {showHomeSettings && <Suspense fallback={<div className={styles.transitionNotice} role="status">正在加载配置...</div>}><NewExperienceSettingsOverlay initialView="providers" onClose={() => setShowHomeSettings(false)} /></Suspense>}
+      {isNewExperience && !isNewHome ? <Suspense fallback={<CanvasEntryLoading target="new" />}>
         <NewCanvasHost boardId={currentBoardId} onLegacy={() => switchExperience('legacy')}
           onHome={openWorkbenchHome}
           onProviderSettings={() => setShowHomeSettings(true)} />
@@ -1112,7 +1160,7 @@ export function App() {
           inset: 0,
         }}
       >
-        <Suspense fallback={null}>
+        <Suspense fallback={<CanvasEntryLoading target="legacy" />}>
           <Drawnix
             canvasLayout="workbench"
             onBackToNewHome={openWorkbenchHome}
@@ -1141,6 +1189,12 @@ export function App() {
             }}
           />
         </Suspense>
+      </div>}
+      {(pending || failed) && <div className={styles.transitionNotice} data-testid="entry-transition" role={failed ? 'alert' : 'status'} aria-live="polite">
+        {pending && <LoaderCircle size={16} className={styles.loadingIndicator} aria-hidden="true" />}
+        <span>{failed ? `${entryNames[failed]}加载失败` : `正在打开${entryNames[pending!]}...`}</span>
+        {failed && <button type="button" title="刷新页面重试" aria-label="刷新页面重试" onClick={() => { void safeReload(); }}><RefreshCw size={16} /></button>}
+        <button type="button" title="取消切换" aria-label="取消切换" onClick={cancel}><X size={16} /></button>
       </div>}
     </div>
   );

@@ -77,6 +77,14 @@ function parseChangelog(content) {
       continue;
     }
 
+    // A non-release heading ends the previous version, including embedded Unreleased sections.
+    if (/^##\s/.test(line)) {
+      if (current) versions.push(current);
+      current = null;
+      currentSection = null;
+      continue;
+    }
+
     if (!current) continue;
 
     const withdrawalMatch = line.match(/^> \*\*撤回说明[:：]\*\*\s*(.+)$/);
@@ -105,10 +113,14 @@ function parseChangelog(content) {
 
     // 解析列表项
     const itemMatch = line.match(/^- (.+)/);
-    if (itemMatch && currentSection && current.changes[currentSection]) {
+    if (itemMatch) {
       const text = stripCommitLink(itemMatch[1]);
-      if (text) {
-        current.changes[currentSection].push(text);
+      const tagged = text.match(/^\[(新增|修复|调整|优化)\]\s*(.+)$/);
+      const section = tagged
+        ? { 新增: 'features', 修复: 'fixes', 调整: 'improvements', 优化: 'improvements' }[tagged[1]]
+        : currentSection;
+      if (text && section) {
+        current.changes[section].push(tagged ? tagged[2] : text);
       }
     }
   }
@@ -156,15 +168,19 @@ function syncChangelog() {
   const content = fs.readFileSync(changelogPath, 'utf8');
   const data = parseChangelog(content);
 
-  fs.writeFileSync(outputPath, JSON.stringify(data, null, 2) + '\n');
+  const output = JSON.stringify(data, null, 2) + '\n';
+  if (!fs.existsSync(outputPath) || fs.readFileSync(outputPath, 'utf8') !== output) {
+    fs.writeFileSync(outputPath, output);
+  }
   console.log(
     `✅ changelog.json 已同步（${data.versions.length} 个版本，最多保留 ${MAX_CHANGELOG_VERSIONS} 个）`
   );
 }
 
+module.exports = syncChangelog;
+module.exports.parseChangelog = parseChangelog;
+
 // 支持独立运行和 require() 调用
 if (require.main === module) {
   syncChangelog();
-} else {
-  module.exports = syncChangelog;
 }

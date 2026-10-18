@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ImageIcon, List, Music2, Settings2, Video, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
-import { listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
+import { isBuiltinNodeType, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
 import { CanvasNodeType, type ConnectionHandle, type Position } from "@/types/canvas";
 
 export type PendingConnectionCreate = {
@@ -12,22 +12,57 @@ export type PendingConnectionCreate = {
     position: Position;
 };
 
+function useMenuPlacement(position: Position, onClose: () => void) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [point, setPoint] = useState(position);
+    useLayoutEffect(() => {
+        const menu = ref.current;
+        const parent = menu?.parentElement;
+        if (!menu || !parent) return;
+        const place = () => {
+            const bounds = parent.getBoundingClientRect();
+            const rect = menu.getBoundingClientRect();
+            const topbar = parent.querySelector(".workflow-canvas-topbar,.workflow-mobile-canvas-topbar")?.getBoundingClientRect();
+            const top = Math.max(8, (topbar?.bottom ?? bounds.top) - bounds.top + 8);
+            setPoint({ x: Math.max(8, Math.min(position.x, bounds.width - rect.width - 8)), y: Math.max(top, Math.min(position.y, bounds.height - rect.height - 8)) });
+        };
+        place();
+        const observer = new ResizeObserver(place);
+        observer.observe(parent);
+        observer.observe(menu);
+        return () => observer.disconnect();
+    }, [position.x, position.y]);
+    useEffect(() => {
+        const outside = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) onClose(); };
+        const escape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+        document.addEventListener("pointerdown", outside, true);
+        document.addEventListener("keydown", escape);
+        return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("keydown", escape); };
+    }, [onClose]);
+    return { ref, point };
+}
+
 export function ConnectionCreateMenu({
     pending,
+    position = pending.position,
     onCreate,
     onClose,
 }: {
     pending: PendingConnectionCreate;
+    position?: Position;
     onCreate: (type: CanvasNodeType.Image | CanvasNodeType.Text | CanvasNodeType.Config | CanvasNodeType.Video | CanvasNodeType.Audio) => void;
     onClose: () => void;
 }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
+    const { ref, point } = useMenuPlacement(position, onClose);
     return (
         <div
-            className="absolute z-[120] w-[300px] rounded-[18px] border p-3 shadow-2xl backdrop-blur"
+            ref={ref}
+            className="absolute z-[120] max-h-[calc(100%-96px)] w-60 max-w-[calc(100%-16px)] overflow-y-auto rounded-lg border p-2 shadow-lg"
             data-connection-create-menu
-            style={{ left: pending.position.x, top: pending.position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            data-canvas-no-zoom
+            style={{ left: point.x, top: point.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
         >
@@ -36,7 +71,7 @@ export function ConnectionCreateMenu({
                     {t("canvas.createMenu.fromNode")}
                 </span>
                 <button type="button" className="grid size-7 place-items-center rounded-lg text-base opacity-55 transition hover:bg-white/10 hover:opacity-100" onClick={onClose} aria-label={t("canvas.createMenu.close")}>
-                    ×
+                    <X className="size-4" />
                 </button>
             </div>
             <div className="grid gap-1">
@@ -54,19 +89,19 @@ export function ConnectionCreateOption({ theme, icon, title, description, onClic
     return (
         <button
             type="button"
-            className="flex h-16 w-full cursor-pointer items-center gap-3 rounded-2xl px-3 text-left transition"
+            className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-left transition"
             style={{ color: theme.node.text }}
             onClick={onClick}
             onMouseEnter={(event) => (event.currentTarget.style.background = theme.node.fill)}
             onMouseLeave={(event) => (event.currentTarget.style.background = "transparent")}
         >
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl" style={{ background: theme.node.fill, color: theme.node.muted }}>
+            <span className="grid size-6 shrink-0 place-items-center" style={{ color: theme.node.muted }}>
                 {icon}
             </span>
             <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-base font-semibold leading-5">{title}</span>
+                <span className="block break-words text-sm font-medium leading-5">{title}</span>
                 {description ? (
-                    <span className="mt-1 block truncate text-sm" style={{ color: theme.node.muted }}>
+                    <span className="mt-0.5 block break-words text-xs" style={{ color: theme.node.muted }}>
                         {description}
                     </span>
                 ) : null}
@@ -79,22 +114,14 @@ export function NodeCreateMenu({ position, onCreate, onClose }: { position: Posi
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const { t } = useTranslation();
     useNodeRegistryVersion();
-    const menuRef = useRef<HTMLDivElement>(null);
+    const { ref: menuRef, point } = useMenuPlacement(position, onClose);
     const definitions = listNodeDefinitions().filter((def) => def.showInCreateMenu !== false);
-    // Close automatically when clicking outside the menu.
-    useEffect(() => {
-        const handlePointerDown = (event: PointerEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) onClose();
-        };
-        document.addEventListener("pointerdown", handlePointerDown, true);
-        return () => document.removeEventListener("pointerdown", handlePointerDown, true);
-    }, [onClose]);
     return (
         <div
             ref={menuRef}
-            className="absolute z-[120] max-h-[70vh] w-[300px] overflow-y-auto rounded-[18px] border p-3 shadow-2xl backdrop-blur thin-scrollbar"
+            className="absolute z-[120] max-h-[calc(100%-96px)] w-60 max-w-[calc(100%-16px)] overflow-y-auto rounded-lg border p-2 shadow-lg thin-scrollbar"
             data-canvas-no-zoom
-            style={{ left: position.x, top: position.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
+            style={{ left: point.x, top: point.y, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             onPointerDown={(event) => event.stopPropagation()}
         >
             <div className="mb-2 flex items-center justify-between px-1">
@@ -107,7 +134,7 @@ export function NodeCreateMenu({ position, onCreate, onClose }: { position: Posi
             </div>
             <div className="grid gap-1">
                 {definitions.map((def) => (
-                    <ConnectionCreateOption key={def.type} theme={theme} icon={def.icon} title={def.title} description={def.description} onClick={() => onCreate(def.type)} />
+                    <ConnectionCreateOption key={def.type} theme={theme} icon={def.icon} title={isBuiltinNodeType(def.type) ? t(`canvas.nodeTypes.${def.type}`) : def.title} description={def.description} onClick={() => onCreate(def.type)} />
                 ))}
             </div>
         </div>

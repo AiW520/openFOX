@@ -65,6 +65,44 @@ For personal-provider development without the trial entry, set
 `VITE_PERSONAL_MODE=1` before starting the dev server. Production builds still
 require the explicit `VITE_PUBLISHER_MODE=1` flag.
 
+## Optional Image Super Resolution
+
+Set `PUBLISHER_UPSCALER_URL` to the private Real-ESRGAN service origin (no path,
+query or credentials) and `PUBLISHER_UPSCALER_TOKEN` to its bearer token in the
+gateway environment. Restart the gateway. Leaving either unset disables
+enhancement without affecting generation or personal providers. The frontend
+never receives this token. Use the separately maintained service at
+`D:/图片超分` for local integration; production needs an independent inference host.
+
+Both canvases show generated originals immediately and automatically enhance new
+image results whose longest edge is at most 2048 pixels: 4× through 1024, otherwise
+2×. Existing images can use the AI super-resolution action with manual 2×/4× and
+photo/anime models. These settings refer to pixel multiplication, not a video
+4K preset: 1024×1024 becomes 4096×4096. Originals and canvas layout are preserved.
+Only enhancement is retried after failure; source generation is never replayed.
+
+Enhancement requires a trial or administrator session, checks mutation origins,
+and binds tasks/results to the authenticated session's existing IP identity.
+It accepts image bytes up to 50 MiB, never a URL for server-side fetching.
+The service validates image dimensions and its own output limits. The gateway
+allows four active enhancement jobs and separately applies the existing daily
+global/per-IP budget values to enhancement requests. Saturation preserves the
+original and returns a retryable UI error. Service requests time out after 90
+seconds; job polling runs every five seconds and stops after the service's
+24-hour task lifetime. Result transfers are capped at 128 MiB and validated as
+PNG with matching dimensions before completion.
+
+The gateway persists task metadata and completed PNGs under
+`PUBLISHER_DATA_DIR/enhancement`; the browser also persists originals, task IDs
+and results in IndexedDB. Refresh resumes the same task. Configure private
+backups, disk monitoring and a retention policy before production: automatic
+disk deletion is not implemented. Do not expose the inference service directly
+to the public internet. Validate available memory, GPU throughput, queue capacity,
+text/face/transparent-image quality and actual latency before enabling automatic
+enhancement. The current web host remains unconfigured for inference.
+
+See `docs/qa-image-super-resolution.md` for local verification evidence.
+
 ## Removal
 
 Rebuild the app without `VITE_PUBLISHER_MODE=1` to remove the trial entry and

@@ -2,7 +2,90 @@
 
 .experienceRoot,
 .canvasRoot {
+  position: relative;
   min-height: 100vh;
+}
+
+.entryLoading {
+  position: absolute;
+  inset: 0;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: 56px 1fr;
+  color: #514f48;
+  background: #f7f5ef;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+
+.entryLoadingHeader {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid #e8e6df;
+  strong { font-size: 17px; }
+  span { font-size: 13px; }
+}
+
+.entryLoadingBody {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  background-image: radial-gradient(#ddd7ca 0.8px, transparent 0.8px);
+  background-size: 22px 22px;
+}
+
+.loadingIndicator {
+  flex-shrink: 0;
+  animation: entry-spin 1s linear infinite;
+}
+
+.transitionNotice {
+  position: fixed;
+  left: 50%;
+  top: calc(68px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 8px 10px 8px 14px;
+  border: 1px solid #deded9;
+  border-radius: 6px;
+  color: #383a38;
+  background: #fff;
+  box-shadow: 0 2px 12px #0000000d;
+  font-size: 13px;
+  span { min-width: 0; overflow-wrap: anywhere; }
+  button {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    &:hover { background: #f1f2ef; }
+    &:focus-visible { outline: 2px solid #458069; outline-offset: 1px; }
+  }
+}
+
+@keyframes entry-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .loadingIndicator { animation: none; }
+}
+
+@media (max-width: 767px) {
+  .transitionNotice { top: calc(108px + env(safe-area-inset-top, 0px)); }
 }
 
 .experienceRoot {

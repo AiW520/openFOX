@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import './featured-content.scss';
 import { showcaseArtwork } from './showcase-artwork';
+import type { HomeReleaseHighlights } from './release-highlights';
+
+declare const __HOME_RELEASE_HIGHLIGHTS__: HomeReleaseHighlights | null;
 
 type FeaturedItem = {
   id: string;
@@ -22,6 +25,8 @@ type FeaturedItem = {
   title: string;
   summary: string;
   detail: string;
+  badge?: string;
+  release?: HomeReleaseHighlights;
   media?:
     | { type: 'image'; src: string; alt: string }
     | { type: 'video'; src: string; poster?: string };
@@ -33,6 +38,7 @@ const FEATURED_ITEMS: FeaturedItem[] = [
     id: 'canvas-update',
     kicker: '产品指南',
     title: '创作画布更新',
+    badge: '产品指南',
     summary: '把灵感、模型和结果放在同一张可编辑的创作空间。',
     detail:
       '把新的创意带进画布，继续完善你的创作。',
@@ -140,16 +146,27 @@ export function FeaturedContent({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const suppressClickUntil = useRef(0);
-  const active = FEATURED_ITEMS[activeIndex];
+  const release = useMemo(
+    () => typeof __HOME_RELEASE_HIGHLIGHTS__ === 'undefined' ? null : __HOME_RELEASE_HIGHLIGHTS__,
+    []
+  );
   const cards = useMemo(
     () =>
       FEATURED_ITEMS.map((item, index) => ({
-        item,
+        item: index === 0 && release ? {
+          ...item,
+          kicker: `版本更新 · ${release.date}`,
+          title: `OpenTu v${release.version}`,
+          summary: release.groups[0].items[0],
+          badge: '版本更新',
+          release,
+        } : item,
         index,
         offset: getRelativeOffset(index, activeIndex, FEATURED_ITEMS.length),
       })),
-    [activeIndex]
+    [activeIndex, release]
   );
+  const active = cards[activeIndex].item;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -324,8 +341,8 @@ export function FeaturedContent({
                 <strong>{item.title}</strong>
                 <em>{item.summary}</em>
               </span>
-              {item.id === 'canvas-update' ? (
-                <span className="featured-content__badge">本周推荐</span>
+              {item.badge ? (
+                <span className="featured-content__badge">{item.badge}</span>
               ) : (
                 <span
                   className="featured-content__card-arrow"
@@ -374,14 +391,14 @@ export function FeaturedContent({
 
       <dialog
         ref={dialogRef}
-        className="featured-content__dialog"
+        className={`featured-content__dialog${activeItem?.release ? ' featured-content__dialog--release' : ''}`}
         aria-labelledby="featured-content-dialog-title"
         onClose={() => setActiveItem(null)}
       >
         {activeItem ? (
           <>
             <form method="dialog" className="featured-content__dialog-header">
-              <span>精选内容</span>
+              <span>{activeItem.release ? '版本更新' : '精选内容'}</span>
               <button type="submit" aria-label="关闭精选内容">
                 <X size={17} />
               </button>
@@ -412,7 +429,16 @@ export function FeaturedContent({
               {activeItem.kicker}
             </span>
             <h3 id="featured-content-dialog-title">{activeItem.title}</h3>
-            <p>{activeItem.detail}</p>
+            {activeItem.release ? (
+              <div className="featured-content__release-notes">
+                {activeItem.release.groups.map((group) => (
+                  <section key={group.title}>
+                    <h4>{group.title}</h4>
+                    <ul>{group.items.map((item) => <li key={item}>{item}</li>)}</ul>
+                  </section>
+                ))}
+              </div>
+            ) : <p>{activeItem.detail}</p>}
             <div className="featured-content__dialog-actions">
               <button
                 type="button"

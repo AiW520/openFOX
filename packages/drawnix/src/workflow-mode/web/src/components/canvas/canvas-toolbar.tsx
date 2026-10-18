@@ -1,7 +1,7 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button, Segmented, Switch } from "antd";
-import { CircleDot, Eraser, Grid2x2, Group, Hand, Image as ImageIcon, Info, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+import { CircleDot, Eraser, Focus, Grid2x2, Group, Hand, Image as ImageIcon, Info, Moon, MousePointer2, Music2, Palette, Puzzle, Redo2, Settings2, Square, Sun, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
 
 import { canvasThemes, type CanvasBackgroundMode, type CanvasColorTheme, type CanvasTheme } from "@/lib/canvas-theme";
 import { getNodePluginId, listNodeDefinitions, useNodeRegistryVersion } from "@/lib/canvas/node-registry";
@@ -13,6 +13,7 @@ import { MobileCanvasToolbar } from "./mobile-canvas-toolbar";
 
 export type CanvasToolbarProps = {
     selectedCount: number;
+    onFocusSelected: () => void;
     canvasTool: "select" | "pan";
     canUndo: boolean;
     canRedo: boolean;
@@ -38,6 +39,7 @@ export type CanvasToolbarProps = {
 export function CanvasToolbar(props: CanvasToolbarProps) {
     const {
     selectedCount,
+    onFocusSelected,
     canvasTool,
     canUndo,
     canRedo,
@@ -95,7 +97,7 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
 
     if (compactScreen) return <MobileCanvasToolbar {...props} />;
     return (
-        <div ref={rootRef} className="workflow-canvas-toolbar pointer-events-none absolute bottom-5 z-50 flex justify-center" style={{ left: 300, right: 16 }}>
+        <div ref={rootRef} data-canvas-bottom-toolbar className="workflow-canvas-toolbar pointer-events-none absolute bottom-5 z-50 flex justify-center" style={{ left: 16, right: 16 }}>
             {tip ? <DockTip label={tip} x={tipX} theme={theme} /> : null}
             <div ref={wrapRef} className="thin-scrollbar pointer-events-auto flex h-14 max-w-full items-center gap-1 overflow-x-auto rounded-xl border px-2 shadow-lg backdrop-blur [&>*]:shrink-0" style={dockStyle}>
                 <ToolbarButton id={`tool-${canvasTool}`} label={t(`canvas.toolbar.${canvasTool}`)} active hovered={hovered} activeStyle={activeStyle} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={() => onCanvasToolChange(canvasTool === "select" ? "pan" : "select")}>
@@ -106,6 +108,9 @@ export function CanvasToolbar(props: CanvasToolbarProps) {
                 </ToolbarButton>
                 <ToolbarButton id="tool-redo" label={t("canvas.redo")} disabled={!canRedo} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onRedo}>
                     <Redo2 className="size-4.5" />
+                </ToolbarButton>
+                <ToolbarButton id="tool-focus" label={t("canvas.toolbar.focus")} disabled={!selectedCount} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onFocusSelected}>
+                    <Focus className="size-4.5" />
                 </ToolbarButton>
                 <Divider theme={theme} />
                 <ToolbarButton id="tool-text" label={t("canvas.toolbar.text")} hovered={hovered} hoverStyle={hoverStyle} wrapRef={wrapRef} onTipX={setTipX} onHover={setHovered} onClick={onAddText}>
@@ -363,6 +368,7 @@ function toolLabel(id: string, t: (key: string) => string) {
     if (id === "tool-pan") return t("canvas.toolbar.pan");
     if (id === "tool-undo") return t("canvas.undo");
     if (id === "tool-redo") return t("canvas.redo");
+    if (id === "tool-focus") return t("canvas.toolbar.focus");
     if (id === "tool-text") return t("canvas.toolbar.text");
     if (id === "tool-image") return t("canvas.toolbar.image");
     if (id === "tool-video") return t("canvas.toolbar.video");

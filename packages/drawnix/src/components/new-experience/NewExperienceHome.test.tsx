@@ -92,7 +92,7 @@ describe('new home model and count handoff', () => {
     fireEvent.click(screen.getByRole('button', { name: '打开画布', exact: true }));
     expect(requestAIInputPrefill).toHaveBeenCalledWith(expect.objectContaining({ target: undefined, prompt: '自由画布草稿', model: 'test-image', params: { size: 'auto', resolution: '2k', quality: 'high' }, count: 1 }));
     expect(openCanvas).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('button', { name: '工作流画布', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: '无限画布', exact: true }));
     expect(selectCanvas).toHaveBeenCalledWith('new');
   });
   it('keeps the mobile prompt editable on Enter and hands parameters over on button tap', () => {

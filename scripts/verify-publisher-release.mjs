@@ -66,7 +66,7 @@ try {
     const nodeCount = await page.locator('.node-element').count();
     await page.getByRole('button', { name: '自由画布', exact: true }).click();
     await page.locator('.drawnix').waitFor();
-    await page.getByRole('button', { name: '工作流画布', exact: true }).click();
+    await page.getByRole('button', { name: '无限画布', exact: true }).click();
     await page.locator('.workflow-canvas-page').waitFor();
     assert.equal(new URL(page.url()).pathname, canvasPath);
     assert.equal(await page.locator('.node-element').count(), nodeCount);

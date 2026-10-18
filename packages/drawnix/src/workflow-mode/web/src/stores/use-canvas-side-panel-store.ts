@@ -7,6 +7,13 @@ export const CANVAS_SIDE_PANEL_DEFAULT_WIDTH = 280;
 
 const WIDTH_KEY = "canvas-side-panel-width";
 const OPEN_KEY = "canvas-side-panel-open";
+const NODE_VIEW_KEY = "canvas-side-panel-node-view";
+export type CanvasNodeViewMode = "list" | "grid";
+
+function initialNodeView(): CanvasNodeViewMode {
+    try { return localStorage.getItem(NODE_VIEW_KEY) === "grid" ? "grid" : "list"; }
+    catch { return "list"; }
+}
 
 function initialWidth() {
     if (typeof window === "undefined") return CANVAS_SIDE_PANEL_DEFAULT_WIDTH;
@@ -26,6 +33,8 @@ type CanvasSidePanelStore = {
     panelOpen: boolean;
     panelMounted: boolean;
     panelClosing: boolean;
+    nodeViewMode: CanvasNodeViewMode;
+    setNodeViewMode: (mode: CanvasNodeViewMode) => void;
     setWidth: (width: number) => void;
     openPanel: () => void;
     closePanel: () => void;
@@ -37,6 +46,11 @@ export const useCanvasSidePanelStore = create<CanvasSidePanelStore>((set, get) =
     panelOpen: initialOpen(),
     panelMounted: initialOpen(),
     panelClosing: false,
+    nodeViewMode: initialNodeView(),
+    setNodeViewMode: mode => {
+        set({ nodeViewMode: mode });
+        try { localStorage.setItem(NODE_VIEW_KEY, mode); } catch { /* Keep the current view usable when storage is unavailable. */ }
+    },
     setWidth: (width) => set({ width }),
     openPanel: () => {
         if (typeof window !== "undefined") localStorage.setItem(OPEN_KEY, "1");

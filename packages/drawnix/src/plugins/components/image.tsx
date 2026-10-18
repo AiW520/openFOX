@@ -710,7 +710,9 @@ export const Image: React.FC<ImageProps> = (props: ImageProps) => {
     width?: string;
     style?: React.CSSProperties;
   } = {
-    src: props.imageItem.url,
+    src: !props.isFocus && (props.element as any)?.enhancement?.applied
+      ? (props.element as any).enhancement.previewUrl || props.imageItem.url
+      : props.imageItem.url,
     draggable: false,
     referrerPolicy: 'no-referrer' as const,
     ...(shouldContainFrameImage

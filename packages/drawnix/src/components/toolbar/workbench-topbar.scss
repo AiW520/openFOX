@@ -1,6 +1,28 @@
 @use '../../styles/version-switcher' as version;
 @import '../../styles/z-index.scss';
 
+.drawnix--workbench {
+  --aitu-canvas-background: #f7f5ef;
+  --aitu-canvas-grid-color: #ddd7ca;
+
+  .unified-toolbar.unified-toolbar--workbench {
+    background: var(--aitu-ui-surface);
+    backdrop-filter: none;
+  }
+
+  .plait-board-container:is(.theme-default, .theme-colorful) .board-host-svg {
+    background-color: var(--aitu-canvas-background);
+    background-image: radial-gradient(
+      circle,
+      var(--aitu-canvas-grid-color) var(--aitu-canvas-grid-radius, 0.8px),
+      transparent calc(var(--aitu-canvas-grid-radius, 0.8px) * 1.25)
+    );
+    background-size: var(--aitu-canvas-grid-spacing, 22px)
+      var(--aitu-canvas-grid-spacing, 22px);
+    background-position: var(--aitu-canvas-grid-position, 0 0);
+  }
+}
+
 .workbench-topbar {
   position: absolute;
   inset: 0 0 auto;

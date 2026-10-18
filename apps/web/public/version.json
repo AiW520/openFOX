@@ -1,11 +1,12 @@
 {
   "version": "1.1.29",
-  "buildTime": "2026-10-17T08:38:52.502Z",
+  "buildTime": "2026-10-17T08:47:54.685Z",
   "gitCommit": "unknown",
   "changelog": [
-    "align merged Tuzi session sync with postMessage onboarding",
-    "add dedicated Tuzi Flux 3 image adapter",
-    "补齐 Gemini 别名和 Veo 参数并清理未支持字段",
-    "补齐 Tuzi 模型 ID 的尺寸和画质参数"
+    "无限画布节点面板支持列表与缩略图视图、分组折叠和图片预览",
+    "优化两个画布的预加载、切换等待和失败重试体验",
+    "自由画布采用米白底、白色工具栏与浅暖灰点阵",
+    "首页自动展示正式版本更新摘要，并优化画布选择布局",
+    "适配画布稳定聚焦、参考连线复制和本地存储降级"
   ]
 }

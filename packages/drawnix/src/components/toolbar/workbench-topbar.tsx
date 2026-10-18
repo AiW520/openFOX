@@ -44,11 +44,11 @@ export const WorkbenchTopbar = React.memo(function WorkbenchTopbar({
         aria-label={zh ? '切换画布' : 'Switch canvas'}
         data-testid="workbench-version-switcher"
       >
-        <button type="button" aria-pressed="true">
+        <button type="button" data-canvas-entry="legacy" aria-pressed="true">
           {zh ? '自由画布' : 'Free canvas'}
         </button>
-        <button type="button" aria-pressed="false" onClick={onSwitchToLegacy}>
-          {zh ? '工作流画布' : 'Workflow canvas'}
+        <button type="button" data-canvas-entry="new" aria-pressed="false" onClick={onSwitchToLegacy}>
+          {zh ? '无限画布' : 'Infinite canvas'}
         </button>
       </div>
       <nav

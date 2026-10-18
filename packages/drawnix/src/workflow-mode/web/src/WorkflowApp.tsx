@@ -20,6 +20,7 @@ export function WorkflowApp({ onOpenProviderSettings }: { onOpenProviderSettings
     }, []);
     return (
         <div className="workflow-app-root" id="opentu-workflow-root" ref={setRoot}>
+            {!root && <div className="workflow-route-loading" role="status">正在准备画布...</div>}
             {root && <OpenTuRuntimeProvider onOpenProviderSettings={onOpenProviderSettings}>
                 <I18nextProvider i18n={i18n}><AppProviders>
                     <WorkflowRouter />

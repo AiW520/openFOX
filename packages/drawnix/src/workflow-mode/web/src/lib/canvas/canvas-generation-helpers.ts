@@ -15,7 +15,7 @@ export async function storeWorkflowImageResults(urls: string[], slotId: string, 
     if (!urls.length) throw new Error("未返回图片结果");
     const results = await Promise.allSettled(urls.map(async (url, index) => {
         const image = await uploadImage(url, options);
-        return { id: index === 0 ? slotId : nanoid(), status: "success" as const, content: image.url, storageKey: image.storageKey, naturalWidth: image.width, naturalHeight: image.height, bytes: image.bytes, mimeType: image.mimeType };
+        return { id: index === 0 ? slotId : nanoid(), enhancementEligibleAt: Date.now(), status: "success" as const, content: image.url, storageKey: image.storageKey, naturalWidth: image.width, naturalHeight: image.height, bytes: image.bytes, mimeType: image.mimeType };
     }));
     const images = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
     const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');

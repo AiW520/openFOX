@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   callApiRaw,
   callApiWithRetry,
@@ -108,6 +108,52 @@ describe('callGoogleGenerateContentRaw', () => {
     expect(normalizeGoogleImageResponse({ candidates: [{ content: { parts: [
       { thought: true, inlineData: { data: 'THOUGHT' } }, { inlineData: { data: 'AAAA' } },
     ] } }] }).data).toEqual([{ b64_json: 'AAAA', mime_type: 'image/png' }]);
+  });
+
+  describe('reference MIME compatibility', () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jK1sAAAAASUVORK5CYII=';
+    const config = { apiKey: 'test-key', baseUrl: 'https://example.test', modelName: 'gemini-nano-banana-2.1', protocol: 'google.generateContent' as const, authType: 'bearer' as const };
+    const submit = (urls: string[]) => callGoogleGenerateContentRaw(config, [{ role: 'user', content: urls.map(url => ({ type: 'image_url' as const, image_url: { url } })) }], { stream: false });
+    const parts = () => JSON.parse(sendMock.mock.calls[0][1].body).contents[0].parts;
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('preserves bytes and reference order when fixing generic MIME', async () => {
+      await submit(['data:image/jpeg;base64,/9j/4A==', `data:application/octet-stream;base64,${png}`]);
+      expect(parts()).toEqual([{ inline_data: { mime_type: 'image/jpeg', data: '/9j/4A==' } }, { inline_data: { mime_type: 'image/png', data: png } }]);
+    });
+    it.each([
+      [[0xff, 0xd8, 0xff, 0xe0], 'image/jpeg'],
+      [Array.from('GIF89a', c => c.charCodeAt(0)), 'image/gif'],
+      [Array.from('RIFF0000WEBP', c => c.charCodeAt(0)), 'image/webp'],
+      [[0, 0, 0, 24, ...Array.from('ftypavif', c => c.charCodeAt(0))], 'image/avif'],
+    ])('identifies a supported binary header (%s)', async (bytes, type) => {
+      const data = btoa(String.fromCharCode(...bytes as number[]));
+      await submit([`data:application/octet-stream;base64,${data}`]);
+      expect(parts()[0].inline_data).toEqual({ mime_type: type, data });
+    });
+    it.each(['', 'application/octet-stream', 'binary/octet-stream'])('recognizes cached blobs with MIME %s', async type => {
+      getCachedBlobMock.mockResolvedValue(new Blob([Uint8Array.from(atob(png), c => c.charCodeAt(0))], { type }));
+      await submit(['https://example.com/__aitu_cache__/image/reference']);
+      expect(parts()[0].inline_data).toEqual({ mime_type: 'image/png', data: png });
+    });
+    it('recognizes a downloaded binary image', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob([Uint8Array.from(atob(png), c => c.charCodeAt(0))], { type: 'application/octet-stream' }) }));
+      await submit(['https://example.test/reference']);
+      expect(parts()[0].inline_data).toEqual({ mime_type: 'image/png', data: png });
+    });
+    it('recognizes a data URL without MIME', async () => {
+      await submit([`data:;base64,${png}`]);
+      expect(parts()[0].inline_data.mime_type).toBe('image/png');
+    });
+    it.each([
+      ['application/octet-stream', btoa('<html>error</html>')],
+      ['application/octet-stream', btoa('RIFF0000WAVE')],
+      ['application/octet-stream', '%%%invalid%%%'],
+      ['text/html', png],
+    ])('rejects reference two before provider submission (%s)', async (mime, data) => {
+      await expect(submit([`data:image/png;base64,${png}`, `data:${mime};base64,${data}`])).rejects.toThrow(/第 2 张参考图/);
+      expect(sendMock).not.toHaveBeenCalled();
+    });
   });
 
   it('forwards AbortSignal through non-stream manual HTTP calls', async () => {

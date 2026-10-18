@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
-import { App, Drawer, Empty, Input, Popconfirm, Select, Spin, Tag } from "antd";
+import { App, Drawer, Empty, Input, Popconfirm, Popover, Select, Spin, Tag } from "antd";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, ListChecks, Music2, Plus, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Download, Eye, FileText, Image as ImageIcon, LayoutGrid, ListChecks, Music2, Plus, Rows3, Search, Settings2, Square, Trash2, Type, Video } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
@@ -98,7 +98,7 @@ export function CanvasSidePanel({ nodes, selectedNodeIds, onFocusNode, onPreview
 
     if (compactScreen) {
         const close = () => useCanvasSidePanelStore.getState().closePanel();
-        return <Drawer getContainer={workflowRoot} rootClassName="workflow-mobile-drawer" className="workflow-mobile-resources" title="画布资源" placement="left" width="min(90vw, 360px)" open={panelOpen} onClose={close}>
+        return <Drawer getContainer={workflowRoot} rootClassName="workflow-mobile-drawer" className="workflow-mobile-resources" title="画布资源" placement="left" width="min(90vw, 360px)" open={panelOpen} onClose={close} destroyOnHidden>
             <div className="workflow-mobile-resource-tabs">
                 <TabButton label={t("canvas.sidePanel.canvas")} active={tab === "canvas"} theme={theme} onClick={() => setTab("canvas")} />
                 <TabButton label={t("canvas.sidePanel.assets")} active={tab === "assets"} theme={theme} onClick={() => setTab("assets")} />
@@ -166,7 +166,7 @@ function nodePreviewText(node: CanvasNodeData) {
     return getNodeDefinition(node.type)?.title || node.type;
 }
 
-function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, theme }: { nodes: CanvasNodeData[]; selectedNodeIds: Set<string>; onFocusNode: (nodeId: string) => void; onPreviewNode: (nodeId: string) => void; theme: CanvasTheme }) {
+export function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, theme }: { nodes: CanvasNodeData[]; selectedNodeIds: Set<string>; onFocusNode: (nodeId: string) => void; onPreviewNode: (nodeId: string) => void; theme: CanvasTheme }) {
     const { message } = App.useApp();
     const { t } = useTranslation();
     useSyncExternalStore(subscribeImagePreviews, getImagePreviewRevision);
@@ -176,6 +176,9 @@ function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, th
     const [checked, setChecked] = useState<Set<string>>(new Set());
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
     const [exporting, setExporting] = useState(false);
+    const nodeViewMode = useCanvasSidePanelStore(state => state.nodeViewMode);
+    const setNodeViewMode = useCanvasSidePanelStore(state => state.setNodeViewMode);
+    const grid = nodeViewMode === "grid";
 
     const filtered = useMemo(() => {
         const query = keyword.trim().toLowerCase();
@@ -230,8 +233,8 @@ function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, th
     };
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="flex items-center gap-2 px-3 pb-2.5 pt-1">
+        <div className="flex h-full flex-col" data-canvas-node-view={nodeViewMode}>
+            <div className="flex flex-wrap items-center gap-1 px-3 pb-2.5 pt-1">
                 <span className="text-xs font-medium opacity-60">{t("canvas.sidePanel.elements")}</span>
                 {filtered.length ? <span className="text-xs opacity-35">{filtered.length}</span> : null}
                 <button
@@ -243,41 +246,45 @@ function CanvasNodesTab({ nodes, selectedNodeIds, onFocusNode, onPreviewNode, th
                     <ListChecks className="size-3.5" />
                     {selectMode ? t("common.cancel") : t("canvas.sidePanel.select")}
                 </button>
-                {selectMode ? null : <Select size="small" variant="borderless" className="w-20" value={typeFilter} onChange={setTypeFilter} options={NODE_FILTER_VALUES.map((value) => ({ value, label: value === "all" ? t("common.all") : t(`canvas.sidePanel.filter.${value}`) }))} />}
+                <button type="button" onClick={() => setNodeViewMode(grid ? "list" : "grid")} className="grid size-8 shrink-0 place-items-center rounded-md opacity-70 transition hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10" aria-label={t(grid ? "canvas.sidePanel.viewList" : "canvas.sidePanel.viewGrid")} title={t(grid ? "canvas.sidePanel.viewList" : "canvas.sidePanel.viewGrid")}>
+                    {grid ? <Rows3 size={16} /> : <LayoutGrid size={16} />}
+                </button>
             </div>
-            <div className="px-3 pb-2.5">
+            <div className="flex items-center gap-1 px-3 pb-2.5">
                 <Input size="small" allowClear prefix={<Search className="size-3.5 text-stone-400" />} placeholder={t("canvas.sidePanel.searchNodes")} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+                <Select size="small" variant="borderless" className="w-20 shrink-0" aria-label={t("canvas.sidePanel.filterType")} value={typeFilter} onChange={setTypeFilter} options={NODE_FILTER_VALUES.map((value) => ({ value, label: value === "all" ? t("common.all") : t(`canvas.sidePanel.filter.${value}`) }))} />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
                 {treeRows.length ? (
-                    <div className="space-y-1.5">
+                    <div className={grid ? "grid grid-cols-2 gap-2" : "space-y-1.5"}>
                         {treeRows.map(({ node, depth, hasChildren }) => {
                             const Icon = NODE_TYPE_ICON[node.type] || FileText;
-                            const isImage = node.type === CanvasNodeType.Image && node.metadata?.content;
+                            const isImage = node.type === CanvasNodeType.Image && Boolean(node.metadata?.content || node.metadata?.storageKey);
+                            const tile = grid && node.type !== CanvasNodeType.Group;
                             const isChecked = checked.has(node.id);
                             const active = selectMode ? isChecked : selectedNodeIds.has(node.id);
                             return (
-                                <div key={node.id} className={cn("group relative flex items-center rounded-lg transition", depth && "ml-5", active ? "" : "hover:bg-black/5 dark:hover:bg-white/5")} style={active ? { background: theme.toolbar.activeBg } : undefined}>
-                                    {depth ? <span className="pointer-events-none absolute -left-3 top-[calc(-50%-0.4rem)] h-[calc(100%+0.4rem)] w-3 rounded-bl-md border-b border-l opacity-45" style={{ borderColor: theme.node.stroke }} /> : null}
+                                <div key={node.id} data-canvas-node-item={node.id} className={cn("group relative flex min-w-0 rounded-lg transition", tile ? "flex-col" : "items-center", grid && !tile && "col-span-2", !grid && depth && "ml-5", active ? "" : "hover:bg-black/5 dark:hover:bg-white/5")} style={active ? { background: theme.toolbar.activeBg } : undefined}>
+                                    {!grid && depth ? <span className="pointer-events-none absolute -left-3 top-[calc(-50%-0.4rem)] h-[calc(100%+0.4rem)] w-3 rounded-bl-md border-b border-l opacity-45" style={{ borderColor: theme.node.stroke }} /> : null}
                                     {node.type === CanvasNodeType.Group && hasChildren ? (
-                                        <button type="button" onClick={() => setCollapsedGroups((prev) => (prev.has(node.id) ? new Set([...prev].filter((id) => id !== node.id)) : new Set(prev).add(node.id)))} className="ml-1 grid size-6 shrink-0 place-items-center opacity-55 transition hover:opacity-100" aria-label={node.title}>
+                                        <button type="button" onClick={() => setCollapsedGroups((prev) => (prev.has(node.id) ? new Set([...prev].filter((id) => id !== node.id)) : new Set(prev).add(node.id)))} className="ml-1 grid size-8 shrink-0 place-items-center opacity-55 transition hover:opacity-100" aria-label={node.title} aria-expanded={!collapsedGroups.has(node.id)}>
                                             <ChevronRight className={cn("size-3.5 transition-transform", !collapsedGroups.has(node.id) && "rotate-90")} />
                                         </button>
                                     ) : null}
-                                    <button type="button" onClick={() => (selectMode ? toggleChecked(node.id) : onFocusNode(node.id))} className={cn("flex min-w-0 flex-1 items-center gap-3 py-2 pr-2 text-left", node.type === CanvasNodeType.Group && hasChildren ? "pl-0" : "pl-2")} title={selectMode ? undefined : t("canvas.sidePanel.focusNode")}>
-                                        {selectMode ? <CheckMark checked={isChecked} theme={theme} /> : null}
-                                        <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md">
-                                            {isImage ? <NodeImageCover node={node} /> : <Icon className="size-5 opacity-60" />}
+                                    <button type="button" onClick={() => (selectMode ? toggleChecked(node.id) : onFocusNode(node.id))} className={cn("flex min-w-0 flex-1 text-left", tile ? "w-full flex-col gap-1 p-1.5" : "items-center gap-3 py-2 pr-2", !tile && (node.type === CanvasNodeType.Group && hasChildren ? "pl-0" : "pl-2"))} aria-label={`${t(selectMode ? "canvas.sidePanel.select" : "canvas.sidePanel.focusNode")}：${node.title || t("canvas.node.untitled")}`} aria-pressed={active} title={node.title || t("canvas.node.untitled")}>
+                                        {selectMode ? <span className={tile ? "absolute left-2 top-2 z-10" : undefined}><CheckMark checked={isChecked} theme={theme} /></span> : null}
+                                        <span className={tile ? "grid aspect-square w-full shrink-0 place-items-center overflow-hidden rounded-md" : "grid size-10 shrink-0 place-items-center overflow-hidden rounded-md"}>
+                                            {isImage ? <NodeImageCover node={node} preview={!selectMode} /> : <Icon className={tile ? "size-7 opacity-60" : "size-5 opacity-60"} />}
                                         </span>
-                                        <span className="min-w-0 flex-1 space-y-0.5">
-                                            <span className="block truncate text-sm font-medium leading-snug">{node.title || getNodeDefinition(node.type)?.title || t("canvas.node.untitled")}</span>
+                                        <span className={cn("min-w-0 space-y-0.5", tile ? "w-full pr-7" : "flex-1")}>
+                                            <span className={cn("block truncate font-medium leading-snug", tile ? "text-xs" : "text-sm")}>{node.title || getNodeDefinition(node.type)?.title || t("canvas.node.untitled")}</span>
                                             <span className="block truncate text-xs leading-snug opacity-50">{nodePreviewText(node)}</span>
                                         </span>
-                                        {node.metadata?.status && node.metadata.status !== "idle" ? <span className="size-1.5 shrink-0 rounded-full" style={{ background: STATUS_COLOR[node.metadata.status] || "transparent" }} /> : null}
+                                        {node.metadata?.status && node.metadata.status !== "idle" ? <span className={cn("size-1.5 shrink-0 rounded-full", tile && "absolute right-2 top-2")} style={{ background: STATUS_COLOR[node.metadata.status] || "transparent" }} /> : null}
                                     </button>
                                     {selectMode || !isImage ? null : (
-                                        <div className="flex shrink-0 flex-col items-center gap-0.5 pr-1.5">
-                                            <button type="button" onClick={() => onPreviewNode(node.id)} className="grid size-7 place-items-center rounded-md opacity-55 transition hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10" aria-label={t("canvas.sidePanel.preview")} title={t("canvas.sidePanel.preview")}>
+                                        <div className={tile ? "absolute bottom-1 right-1" : "flex shrink-0 flex-col items-center gap-0.5 pr-1.5"}>
+                                            <button type="button" onClick={() => onPreviewNode(node.id)} className="grid size-9 place-items-center rounded-md opacity-70 transition hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10" aria-label={`${t("canvas.sidePanel.preview")}：${node.title}`} title={t("canvas.sidePanel.preview")}>
                                                 <Eye className="size-3.5" />
                                             </button>
                                         </div>
@@ -488,10 +495,14 @@ function AssetCover({ asset }: { asset: Asset }) {
         : asset.kind === 'video' ? <video src={source ? `${source}#t=0.1` : undefined} muted playsInline preload="metadata" className="size-full object-cover" /> : null}</div>;
 }
 
-function NodeImageCover({ node }: { node: CanvasNodeData }) {
-    const { ref, visible } = useMediaIntersection();
+function NodeImageCover({ node, preview }: { node: CanvasNodeData; preview: boolean }) {
+    const compact = useCompactScreen();
+    const [open, setOpen] = useState(false);
+    const { ref, visible } = useMediaIntersection<HTMLSpanElement>();
     const { source, onError } = useStoredImage(visible ? node.metadata?.storageKey : undefined, visible ? node.metadata?.content : undefined);
-    return <div ref={ref} className="size-full"><img src={source} onError={onError} alt={node.title} loading="lazy" decoding="async" className="size-full object-cover" /></div>;
+    return <Popover open={open && visible && preview && !compact} onOpenChange={setOpen} placement="right" getPopupContainer={workflowRoot} destroyOnHidden content={open && visible && preview && !compact ? <div className="w-64 max-w-[calc(100vw-48px)]"><div className="mb-2 truncate text-sm font-medium" title={node.title}>{node.title}</div>{source ? <img src={source} alt={node.title} onError={onError} className="h-56 w-full object-contain" /> : <ImageIcon className="mx-auto h-56 w-full p-16 opacity-35" />}</div> : null}>
+        <span ref={ref} className="grid size-full place-items-center">{source ? <img src={source} onError={onError} alt={node.title} loading="lazy" decoding="async" className="size-full object-cover" /> : <ImageIcon className="size-5 opacity-30" />}</span>
+    </Popover>;
 }
 
 // ---------------------------------------------------------------------------

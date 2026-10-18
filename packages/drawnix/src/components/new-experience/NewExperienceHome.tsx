@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Bot,
@@ -28,6 +28,7 @@ import { requestAIInputPrefill } from '../../services/ai-input-ui-events';
 import './new-experience.scss';
 import { useCompactScreen } from '../../hooks/use-compact-screen';
 import { showcaseArtwork } from './showcase-artwork';
+import { scheduleIdlePreload } from '../../utils/cached-loader';
 
 const PromptOptimizeDialog = lazy(() =>
   import('../shared/PromptOptimizeDialog').then((module) => ({
@@ -42,6 +43,7 @@ export interface NewExperienceHomeProps {
   onOpenSettings: () => void;
   canvasType?: 'legacy' | 'new';
   onSelectCanvas?: (type: 'legacy' | 'new') => void;
+  onPreloadCanvas?: (type: 'legacy' | 'new') => Promise<unknown>;
 }
 
 type CreationType = Exclude<GenerationType, never>;
@@ -79,7 +81,12 @@ export function NewExperienceHome({
   onOpenSettings,
   canvasType = 'new',
   onSelectCanvas,
+  onPreloadCanvas,
 }: NewExperienceHomeProps) {
+  useEffect(() => {
+    if (!onPreloadCanvas) return undefined;
+    return scheduleIdlePreload(() => onPreloadCanvas(canvasType));
+  }, [canvasType, onPreloadCanvas]);
   const compactScreen = useCompactScreen();
   const [prompt, setPrompt] = useState('');
   const [shareState, setShareState] = useState('');
@@ -227,8 +234,8 @@ export function NewExperienceHome({
 
         <div className="new-experience__composer" ref={composerRef}>
           <div className="new-experience__canvas-selector" role="group" aria-label="选择画布">
-            <button type="button" aria-pressed={canvasType === 'legacy'} onClick={() => onSelectCanvas?.('legacy')}><PencilRuler size={16} />自由画布</button>
-            <button type="button" aria-pressed={canvasType === 'new'} onClick={() => onSelectCanvas?.('new')}><Workflow size={16} />工作流画布</button>
+            <button type="button" data-canvas-entry="legacy" aria-pressed={canvasType === 'legacy'} onClick={() => onSelectCanvas?.('legacy')}><PencilRuler size={16} />自由画布</button>
+            <button type="button" data-canvas-entry="new" aria-pressed={canvasType === 'new'} onClick={() => onSelectCanvas?.('new')}><Workflow size={16} />无限画布</button>
           </div>
           <div className="new-experience__composer-header">
             <div
@@ -300,6 +307,7 @@ export function NewExperienceHome({
             <div className="new-experience__prompt-actions">
               <button
                 className="new-experience__start"
+                data-canvas-entry={canvasType}
                 type="button"
                 disabled={
                   !prompt.trim() ||
@@ -370,6 +378,7 @@ export function NewExperienceHome({
             <button
               type="button"
               className="new-experience__canvas-shortcut"
+              data-canvas-entry={canvasType}
               disabled={isPromptOptimizeOpen}
               onClick={() => {
                 if (prompt.trim()) openCanvasWithDraft();

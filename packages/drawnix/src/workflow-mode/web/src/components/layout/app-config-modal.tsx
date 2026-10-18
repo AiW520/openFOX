@@ -1,4 +1,4 @@
-import { App, Button, Form, Input, Modal, Progress, Select, Tabs } from "antd";
+import { App, Button, Form, Input, Modal, Progress, Select, Switch, Tabs } from "antd";
 import { SharedProviderChannels } from './shared-provider-channels';
 import type { TFunction } from "i18next";
 import { Cloud, Download, Pencil, Plus, RefreshCw, Trash2, Upload, Wifi } from "lucide-react";
@@ -243,6 +243,9 @@ export function AppConfigPanel({ showDoneButton = false, initialTab = "channels"
                                     ))}
                                 </div>
                                 <div className="mb-2 text-sm font-semibold">{t("config.preferences.generation")}</div>
+                                <Form.Item label={t("config.preferences.autoFocusOnSelect")}>
+                                    <Switch checked={config.autoFocusOnSelect} onChange={value => updateConfig("autoFocusOnSelect", value)} />
+                                </Form.Item>
                                 <div className="grid gap-4 md:grid-cols-4">
                                     <Form.Item label={t("config.preferences.canvasImageCount")} extra={t("config.preferences.canvasImageCountDescription")} className="mb-4">
                                         <Input

@@ -333,6 +333,7 @@ function buildTaskGenerationMetadata(
   const prompt = readTaskParamString(task, 'prompt');
   const generationAnchorId = getTaskAnchorId(task, anchor);
   return {
+    enhancementEligibleAt: Date.now(),
     ...(prompt ? { prompt } : {}),
     generationTaskId: task.id,
     ...(generationAnchorId ? { generationAnchorId } : {}),
@@ -448,6 +449,7 @@ function buildImageGenerationElementPatch(
   const prompt = readTaskParamString(task, 'prompt');
   const generationAnchorId = getTaskAnchorId(task, anchor);
   return {
+    enhancementEligibleAt: Date.now(),
     ...(prompt ? { prompt } : {}),
     generationTaskId: task.id,
     ...(generationAnchorId ? { generationAnchorId } : {}),
@@ -462,6 +464,7 @@ function buildTaskGenerationElementPatch(
   const prompt =
     typeof metadata.prompt === 'string' ? metadata.prompt.trim() : '';
   return {
+    enhancementEligibleAt: Date.now(),
     ...(prompt
       ? {
           aiPrompt: prompt,
@@ -3235,26 +3238,27 @@ export function useAutoInsertToCanvas(
         return;
       }
 
-      const shouldRegenerateCompletedTask =
-        retryTask.status === TaskStatus.COMPLETED &&
-        postProcessingStatus === 'failed';
-
       if (
         retryTask.status === TaskStatus.FAILED ||
-        retryTask.status === TaskStatus.CANCELLED ||
-        shouldRegenerateCompletedTask
+        retryTask.status === TaskStatus.CANCELLED
       ) {
         updateRetryAnchor('retrying');
         releaseTaskInsertion(taskId);
         workflowCompletionService.clearTask(taskId);
-        getTaskQueueService().retryTask(
-          taskId,
-          shouldRegenerateCompletedTask ? { allowCompleted: true } : undefined
-        );
+        getTaskQueueService().retryTask(taskId);
         return;
       }
 
       if (retryTask.status === TaskStatus.COMPLETED) {
+        if (!retryTask.result?.url && !retryTask.result?.urls?.length) {
+          updateRetryAnchor('failed', {
+            subtitle: '图片结果暂不可恢复',
+            error: '原任务缺少图片地址，无法恢复；请在任务中明确选择重新生成。',
+          });
+          return;
+        }
+        // A completed result belongs to the original paid submission; only retry delivery.
+        updateRetryAnchor('inserting', { subtitle: '正在恢复已生成图片' });
         releaseTaskInsertion(taskId);
         workflowCompletionService.clearTask(taskId);
         handleTaskCompleted(retryTask);

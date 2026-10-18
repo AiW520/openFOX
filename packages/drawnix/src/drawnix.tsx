@@ -29,6 +29,8 @@ import React, {
   Suspense,
 } from 'react';
 import { useTuziAccountOnboarding } from './hooks/useTuziAccountOnboarding';
+import { useCanvasBackground } from './hooks/useCanvasBackground';
+const FreeCanvasEnhancement = lazy(() => import('./components/image-enhancement/FreeCanvasEnhancement'));
 import { withGroup } from '@plait/common';
 import { withDraw, BasicShapes, DrawTransforms } from '@plait/draw';
 import { MindThemeColors, withMind } from '@plait/mind';
@@ -356,6 +358,7 @@ export const Drawnix: React.FC<DrawnixProps> = ({
   });
 
   const [board, setBoard] = useState<DrawnixBoard | null>(null);
+  useCanvasBackground(board, canvasLayout === 'workbench');
   const [projectDrawerOpen, setProjectDrawerOpen] = useState(false);
   const [toolboxDrawerOpen, setToolboxDrawerOpen] = useState(false);
   const [taskPanelExpanded, setTaskPanelExpanded] = useState(false);
@@ -1955,6 +1958,7 @@ const DrawnixContent: React.FC<DrawnixContentProps> = ({
           )}
           {/* ViewNavigation - 视图导航（缩放 + 小地图） */}
           <ViewNavigation />
+          <Suspense fallback={null}><FreeCanvasEnhancement key={currentBoardId} board={board} value={value} /></Suspense>
         </Wrapper>
         <Suspense fallback={null}>
           <ChatDrawer ref={chatDrawerRef} />

@@ -174,7 +174,7 @@
   display: flex;
   flex: 1 1 auto;
   gap: 4px;
-  padding: 14px 16px 8px;
+  padding: 8px 16px;
   overflow-x: auto;
   button {
     flex: 0 0 auto;
@@ -236,7 +236,7 @@
 }
 .new-experience__optimize--top {
   flex: 0 0 auto;
-  margin: 14px 16px 0 8px;
+  margin: 8px 16px 0 8px;
 }
 .new-experience__prompt-row textarea {
   display: block;
@@ -717,11 +717,12 @@
 
   .new-experience--compact .new-experience__composer-header {
     display: block;
-    padding: 12px 12px 0;
+    padding: 4px 12px 0;
   }
 
   .new-experience--compact .new-experience__type-tabs {
     width: 100%;
+    padding: 4px 0 0;
     overflow-x: auto;
     justify-content: flex-start;
     scrollbar-width: none;
@@ -729,7 +730,7 @@
 
   .new-experience--compact .new-experience__type-tabs::-webkit-scrollbar { display: none; }
   .new-experience--compact .new-experience__type-tabs button { min-height: 42px; flex: 0 0 auto; }
-  .new-experience--compact .new-experience__optimize--top { margin: 12px 0 0; }
+  .new-experience--compact .new-experience__optimize--top { margin: 8px 0 0; }
   .new-experience--compact .new-experience__prompt-row { padding: 14px 12px; }
   .new-experience--compact .new-experience__prompt-row textarea { min-height: 116px; padding: 14px; border-radius: 14px; }
   .new-experience--compact .new-experience__start { width: 100%; min-height: 48px; justify-content: center; }
@@ -773,23 +774,35 @@
 }
 .new-experience__canvas-selector {
   display: flex;
-  gap: 4px;
-  padding-bottom: 16px;
+  gap: 6px;
+  padding: 12px 16px 0;
   button {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
+    flex: 0 0 auto;
+    min-width: 112px;
     min-height: 36px;
     padding: 6px 12px;
-    border: 0;
-    border-radius: 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
     background: transparent;
-    color: #52525b;
-    cursor: pointer;
-    font: inherit;
-    font-size: 14px;
-    &[aria-pressed='true'] { background: #e4e4e7; color: #18181b; }
-    &:hover { background: #f0f0f2; }
+    color: var(--ne-muted);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    white-space: nowrap;
+    &:hover { background: #f5f5f7; color: var(--ne-ink); }
+    &[aria-pressed='true'] {
+      border-color: #c9dff5;
+      background: var(--ne-primary-soft);
+      color: var(--ne-primary);
+    }
   }
+}
+
+.new-experience--compact .new-experience__canvas-selector {
+  padding: 12px 12px 0;
+  button { min-height: 42px; }
 }

@@ -439,6 +439,21 @@
     line-height: 1.7;
   }
 
+  &__dialog--release img.featured-content__dialog-art {
+    height: 140px;
+  }
+
+  &__release-notes {
+    margin: 16px 21px 0;
+    overflow-wrap: anywhere;
+
+    section + section { margin-top: 18px; }
+    h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+    ul { margin: 0; padding-left: 18px; }
+    li { padding-left: 2px; color: var(--ne-muted); font-size: 12px; line-height: 1.7; }
+    li + li { margin-top: 6px; }
+  }
+
   &__media-preview {
     gap: 10px;
     min-height: 70px;

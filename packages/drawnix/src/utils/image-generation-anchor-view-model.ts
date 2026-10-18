@@ -394,7 +394,7 @@ export function buildImageGenerationAnchorViewModel(
 
   const primaryAction =
     phase === 'failed'
-      ? { type: 'retry' as const, label: '重试' }
+      ? { type: 'retry' as const, label: task?.status === TaskStatus.COMPLETED ? '恢复图片' : '重新生成' }
       : { type: 'details' as const, label: '详情' };
 
   const secondaryAction =

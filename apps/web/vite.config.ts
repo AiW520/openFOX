@@ -7,6 +7,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { createRequire } from 'module';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { selectHomeRelease } from '../../packages/drawnix/src/components/new-experience/release-highlights';
 
 const require = createRequire(import.meta.url);
 const workspaceRoot = path.resolve(__dirname, '../..');
@@ -18,6 +19,7 @@ const devCacheNamespace = crypto
 
 // Read version from public/version.json
 const versionPath = path.resolve(__dirname, 'public/version.json');
+require(path.resolve(workspaceRoot, 'scripts/sync-changelog.js'))();
 const appChangelog = fs.readFileSync(path.resolve(__dirname, 'public/changelog.json'), 'utf8');
 let appVersion = '0.0.0';
 
@@ -1201,6 +1203,7 @@ export default defineConfig({
     'process.env.NODE_ENV': JSON.stringify(reactNodeEnv),
     __APP_VERSION__: JSON.stringify(appVersion),
     __APP_CHANGELOG__: appChangelog,
+    __HOME_RELEASE_HIGHLIGHTS__: JSON.stringify(selectHomeRelease(JSON.parse(appChangelog), appVersion)),
     // Vue feature flags - @milkdown/crepe 内部使用了 Vue，需要定义这些编译时标志
     __VUE_OPTIONS_API__: JSON.stringify(false),
     __VUE_PROD_DEVTOOLS__: JSON.stringify(false),

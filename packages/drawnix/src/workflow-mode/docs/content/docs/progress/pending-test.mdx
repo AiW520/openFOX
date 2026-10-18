@@ -5,6 +5,16 @@ description: Implemented changes that still need manual verification
 
 # Pending Tests
 
+- Infinite canvas node panel: the canvas elements panel now has a persisted list/thumbnail switch. Both modes keep group folding, search/type filters, node focus and checked export selection. Image thumbnails read existing preview leases only after entering the visible area; desktop hover previews reuse that thumbnail, while mobile has an explicit enlarged-preview action. Closing the mobile resource drawer releases thumbnail leases. Six focused component regressions pass, and isolated Chromium verified the infinite-canvas entry plus the ivory canvas/warm-gray dot pattern. Real saved nodes, image previews, mobile drawer interaction and weak-network behavior still need manual acceptance.
+
+- Workbench loading (approved option A): selected-entry and pointer/keyboard intent imports share cached loaders; the current screen remains visible while switching, with cancellation and explicit safe-refresh recovery after module failure. Local empty-document desktop samples show first infinite entry median 1761 -> 1385 ms and no sampled interval without canvas/status. Independent desktop/mobile viewport checks and focused navigation/storage/recovery tests pass; real devices, large saved projects, slow networks, production assets and offline/update behavior still need acceptance. See the root `docs/qa-unified-canvas-workbench.md` for evidence and limits.
+
+- Upstream canvas interaction adaptation: infinite canvas now frames nodes within the visible area, keeps panels and creation menus readable across zoom, pins reference selection feedback, focuses mobile drawers, copies incoming references, and degrades when the Storage API is unavailable. Free canvas now normalizes Gemini reference MIME values and supports card copying/selection feedback. Completed image results can be delivered again after a failed load or insertion without submitting generation again. Focused MIME, clipboard, copy, storage, geometry and recovery regressions pass (118 tests); isolated Chromium verified the desktop entry, ivory dot canvas and node layout. Full node-panel, real-provider recovery, real-device and weak-network checks remain pending.
+
+- Canvas naming: the home page and both canvas switchers should display “无限画布” (Infinite canvas); switching and restoring existing projects should still work.
+
+- Image super-resolution: both canvases now preserve the original, support automatic background enhancement and manual 2×/4× Real-ESRGAN, persist tasks across refresh, and retain full-resolution downloads. Local CPU validation completed with 1024×1024 → 4096×4096 and 96×64 → 384×256; isolated Chrome verified desktop/mobile display, downloads, cancellation and reconnect. Production independent inference capacity, quality review and real mobile-device acceptance remain pending.
+
 - OpenTu 统一工作台：从首页选择自由画布或工作流画布，描述、模型、尺寸和数量应带入对应画布；画布之间切换、返回首页后再打开以及刷新时应恢复原项目。共享供应商配置、体验码、配置/任务/批量生图入口继续使用现有实现。生产构建、自动化浏览器结果和上线记录见根目录 `docs/qa-unified-canvas-workbench.md`；真实手机与其他模型的完整生成流程仍待人工验收。
 
 - Seedream 名称兼容：完整 ID `doubao-seedream-5-0-lite-260128` 和 `seedream-5.0` 在普通画布及工作流显示尺寸与 2K/3K 控件，保存恢复保持原 ID、渠道和画质。`seedream-5.0` 两次真实请求均 HTTP 200，首张返回图尺寸符合 2560x1440 / 4096x2304；具体引擎版本、其他比例/参考图/渠道及页面仍待验收，不开放额外水印或 Pro 字段。

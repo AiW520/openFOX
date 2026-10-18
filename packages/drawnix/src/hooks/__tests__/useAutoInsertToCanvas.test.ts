@@ -3521,16 +3521,16 @@ describe('useAutoInsertToCanvas', () => {
     );
   });
 
-  it('regenerates a completed task when generation anchor retry follows failed post-processing', async () => {
+  it('recovers a completed result without regenerating after failed post-processing', async () => {
     const task = createCompletedImageTask({
       id: 'task-post-processing-failed',
       params: {
-        prompt: '重新生成一张图',
+        prompt: '恢复已有图片',
         size: '1:1',
+        autoInsertToCanvas: true,
       },
     });
     mocks.board = { children: [] };
-    mocks.taskState.tasks = [task];
     mocks.getPostProcessingStatus.mockReturnValue({
       taskId: task.id,
       status: 'failed',
@@ -3545,6 +3545,9 @@ describe('useAutoInsertToCanvas', () => {
         groupTimeWindow: 10,
       })
     );
+
+    mocks.taskState.tasks = [task];
+    mocks.clearTask.mockImplementation(() => mocks.getPostProcessingStatus.mockReturnValue(undefined));
 
     act(() => {
       window.dispatchEvent(
@@ -3561,16 +3564,51 @@ describe('useAutoInsertToCanvas', () => {
       mocks.board,
       'anchor-post-processing-failed',
       expect.objectContaining({
-        phase: 'queued',
-        subtitle: '正在重新触发，请稍候',
+        phase: 'inserting',
+        subtitle: '正在恢复已生成图片',
       })
     );
     expect(mocks.clearTask).toHaveBeenCalledWith(task.id);
-    expect(mocks.retryTask).toHaveBeenCalledWith(task.id, {
-      allowCompleted: true,
-    });
+    expect(mocks.retryTask).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    expect(mocks.quickInsert).toHaveBeenCalledTimes(1);
+    expect(task.status).toBe(TaskStatus.COMPLETED);
+    expect(task.result?.url).toBe('/__aitu_cache__/image/task-1.png');
+    expect(mocks.markAsInserted).toHaveBeenCalledWith(task.id, 'auto_insert');
+    act(() => window.dispatchEvent(new CustomEvent(IMAGE_GENERATION_ANCHOR_RETRY_EVENT, { detail: { taskId: task.id } })));
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    expect(mocks.quickInsert).toHaveBeenCalledTimes(1);
+    expect(mocks.retryTask).not.toHaveBeenCalled();
+  });
+
+  it('keeps completed results recoverable after repeated insertion failures', async () => {
+    const task = createCompletedImageTask();
+    mocks.board = { children: [] };
+    mocks.quickInsert.mockResolvedValue({ success: false, error: '图片下载失败' });
+    renderHook(() => useAutoInsertToCanvas({ enabled: true, groupSimilarTasks: true, groupTimeWindow: 10 }));
+    mocks.taskState.tasks = [task];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      act(() => window.dispatchEvent(new CustomEvent(IMAGE_GENERATION_ANCHOR_RETRY_EVENT, { detail: { taskId: task.id } })));
+      await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+      expect(mocks.quickInsert).toHaveBeenCalledTimes(attempt);
+      expect(mocks.failPostProcessing).toHaveBeenCalledWith(task.id, expect.stringContaining('图片下载失败'));
+      expect(mocks.retryTask).not.toHaveBeenCalled();
+      expect(mocks.markAsInserted).not.toHaveBeenCalled();
+      expect(task.status).toBe(TaskStatus.COMPLETED);
+      expect(task.result?.url).toBe('/__aitu_cache__/image/task-1.png');
+    }
+  });
+
+  it('reports a missing completed result without submitting generation', () => {
+    const task = createCompletedImageTask({ result: undefined });
+    mocks.board = { children: [] };
+    renderHook(() => useAutoInsertToCanvas({ enabled: true }));
+    mocks.taskState.tasks = [task];
+    act(() => window.dispatchEvent(new CustomEvent(IMAGE_GENERATION_ANCHOR_RETRY_EVENT, { detail: { taskId: task.id, anchorId: 'missing-result' } })));
+    expect(mocks.retryTask).not.toHaveBeenCalled();
+    expect(mocks.clearTask).not.toHaveBeenCalled();
     expect(mocks.quickInsert).not.toHaveBeenCalled();
-    expect(mocks.insertGeneratedImageFlow).not.toHaveBeenCalled();
+    expect(mocks.updateAnchor).toHaveBeenCalledWith(mocks.board, 'missing-result', expect.objectContaining({ phase: 'failed', subtitle: '图片结果暂不可恢复' }));
   });
 
   it('keeps the failed state visible when retry task has been removed', async () => {

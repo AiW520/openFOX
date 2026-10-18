@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable, Transform } from 'node:stream';
 import { finished, pipeline } from 'node:stream/promises';
+import { createEnhancement } from './enhancement.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DAY = 86_400_000;
@@ -255,6 +256,13 @@ export function createGateway(options = {}) {
     requireCondition(req.headers['sec-fetch-site'] !== 'cross-site', 403, '请求来源不允许');
   }
 
+  const enhancement = createEnhancement({ dataDir,
+    serviceUrl: options.upscalerUrl || process.env.PUBLISHER_UPSCALER_URL,
+    token: options.upscalerToken || process.env.PUBLISHER_UPSCALER_TOKEN,
+    fetchService: options.fetchEnhancement || fetch,
+    authorize: req => { try { return session(req, 'tester'); } catch { return session(req, 'admin'); } },
+    checkMutation, readBody, json, requireCondition, limits: () => config.limits });
+
   function limitsSnapshot() {
     const day = new Date().toISOString().slice(0, 10);
     if (usage.day !== day) usage = { day, total: 0, ips: {}, tasks: usage.tasks || {} };
@@ -444,6 +452,7 @@ export function createGateway(options = {}) {
     try {
       requireCondition(req.headers.host === new URL(origin).host, 400, 'Host 不允许');
       const url = new URL(req.url, origin);
+      if (await enhancement.handle(req, res, url)) return;
       const publicFiles = {
         '/publisher': 'index.html', '/publisher/': 'index.html',
         '/publisher/admin.js': 'admin.js', '/publisher/style.css': 'style.css',
@@ -573,7 +582,7 @@ export function createGateway(options = {}) {
     for (const [id, value] of minuteUsage) if (value.minute < Math.floor(Date.now() / 60_000) - 1) minuteUsage.delete(id);
   }, 60_000);
   cleanup.unref();
-  server.on('close', () => clearInterval(cleanup));
+  server.on('close', () => { clearInterval(cleanup); enhancement.close(); });
   return server;
 }
 

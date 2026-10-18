@@ -80,6 +80,8 @@ export const ImageGenerationAnchorContent: React.FC<
     ? batchPreview?.statusText || PHASE_CENTER_LABELS[viewModel.phase]
     : showDeterminateProgress
     ? getImageTaskProgressStatusText(progressValue)
+    : viewModel.phase === 'failed' && resolvedTask?.status === TaskStatus.COMPLETED
+    ? '图片加载失败'
     : PHASE_CENTER_LABELS[viewModel.phase];
   const progressTone: ImageGenerationProgressTone =
     viewModel.phase === 'failed'
@@ -204,37 +206,6 @@ export const ImageGenerationAnchorContent: React.FC<
             })
           );
           return;
-        }
-
-        const retryablePostProcessingStatus = retryableTask
-          ? workflowCompletionService.getPostProcessingStatus(retryableTask.id)
-              ?.status
-          : undefined;
-
-        if (retryableTask) {
-          ImageGenerationAnchorTransforms.updateAnchor(
-            board,
-            element.id,
-            buildImageGenerationAnchorPresentationPatch('retrying')
-          );
-
-          if (
-            retryableTask.status === TaskStatus.FAILED ||
-            retryableTask.status === TaskStatus.CANCELLED
-          ) {
-            taskQueueService.retryTask(retryableTask.id);
-            return;
-          }
-
-          if (
-            retryableTask.status === TaskStatus.COMPLETED &&
-            retryablePostProcessingStatus === 'failed'
-          ) {
-            taskQueueService.retryTask(retryableTask.id, {
-              allowCompleted: true,
-            });
-            return;
-          }
         }
 
         window.dispatchEvent(

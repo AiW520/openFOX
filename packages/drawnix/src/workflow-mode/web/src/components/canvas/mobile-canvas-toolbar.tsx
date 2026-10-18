@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Drawer, Segmented, Switch, Tooltip } from "antd";
-import { Group, Hand, Image, MoreHorizontal, MousePointer2, Music2, Palette, Plus, Redo2, Settings2, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
+import { Focus, Group, Hand, Image, MoreHorizontal, MousePointer2, Music2, Palette, Plus, Redo2, Settings2, Trash2, Type, Undo2, Upload, Video } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { canvasThemes } from "@/lib/canvas-theme";
@@ -34,7 +34,7 @@ export function MobileCanvasToolbar(props: CanvasToolbarProps) {
     ];
     const run = (action: () => void) => { setPanel(null); action(); };
     return <>
-        <div className="workflow-mobile-dock" role="toolbar" aria-label="画布工具" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}>
+        <div data-canvas-bottom-toolbar className="workflow-mobile-dock" role="toolbar" aria-label="画布工具" style={{ background: theme.toolbar.panel, borderColor: theme.toolbar.border, color: theme.toolbar.item }}>
             {tools.map(({ key, icon: Icon, label, action, disabled }) => <Tooltip key={key} title={label}><button type="button" aria-label={label} title={label} disabled={disabled} onClick={action} className={key === "add" ? "is-primary" : undefined}><Icon size={21} /></button></Tooltip>)}
         </div>
         <Drawer getContainer={workflowRoot} rootClassName="workflow-mobile-drawer" title={panel === "add" ? t("canvas.create") : t("canvas.imageTools.more")} placement="bottom" height="auto" open={Boolean(panel)} onClose={() => setPanel(null)}>
@@ -42,6 +42,7 @@ export function MobileCanvasToolbar(props: CanvasToolbarProps) {
                 {addTools.map(({ icon: Icon, label, action }) => <button key={label} type="button" onClick={() => run(action)}><Icon size={23} /><span>{label}</span></button>)}
                 {listNodeDefinitions().filter(def => def.showInCreateMenu !== false && getNodePluginId(def.type) !== "builtin").map(def => <button key={def.type} type="button" onClick={() => run(() => props.onAddExtensionNode(def.type))}>{def.icon}<span>{def.title}</span></button>)}
             </div> : <div className="workflow-mobile-more">
+                <button type="button" disabled={!props.selectedCount} onClick={() => run(props.onFocusSelected)}><Focus size={18} />{t("canvas.toolbar.focus")}</button>
                 <label><Palette size={18} /><span>{t("canvas.toolbar.themeMode")}</span><Switch checked={colorTheme === "dark"} onChange={dark => setTheme(dark ? "dark" : "light")} /></label>
                 <Segmented block value={props.backgroundMode} onChange={value => props.onBackgroundModeChange(value as CanvasToolbarProps["backgroundMode"])} options={[{ value: "dots", label: t("canvas.toolbar.dots") }, { value: "lines", label: t("canvas.toolbar.lines") }, { value: "blank", label: t("canvas.toolbar.blank") }]} />
                 <label><span>{t("canvas.toolbar.imageInfo")}</span><Switch checked={props.showImageInfo} onChange={props.onShowImageInfoChange} /></label>

@@ -40,7 +40,8 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
     }, [active, refresh, usage]);
 
     const indexedDbBytes = usage?.contentBytes ?? 0;
-    const percent = usage ? Math.min(100, (usage.usage / usage.quota) * 100) : 0;
+    const percent = usage?.usage != null && usage.quota != null && usage.quota > 0 ? Math.min(100, (usage.usage / usage.quota) * 100) : null;
+    const storageBytes = (bytes: number | null) => bytes == null ? t("canvas.projectPage.unknown") : formatStorageBytes(bytes);
 
     return (
         <div className="space-y-3">
@@ -64,15 +65,15 @@ export function ConfigLocalStorage({ active }: { active: boolean }) {
                     <>
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
                             <StorageMetric icon={<Database className="size-4" />} label={t("config.localStorage.indexedDbUsage")} value={formatStorageBytes(indexedDbBytes)} hint={t("config.localStorage.contentEstimate")} />
-                            <StorageMetric icon={<HardDrive className="size-4" />} label={t("config.localStorage.siteUsage")} value={formatStorageBytes(usage.usage)} hint={t("config.localStorage.siteUsageHint")} />
-                            <StorageMetric icon={<Layers3 className="size-4" />} label={t("config.localStorage.quota")} value={formatStorageBytes(usage.quota)} hint={t("config.localStorage.quotaHint")} />
+                            <StorageMetric icon={<HardDrive className="size-4" />} label={t("config.localStorage.siteUsage")} value={storageBytes(usage.usage)} hint={t("config.localStorage.siteUsageHint")} />
+                            <StorageMetric icon={<Layers3 className="size-4" />} label={t("config.localStorage.quota")} value={storageBytes(usage.quota)} hint={t("config.localStorage.quotaHint")} />
                         </div>
                         <div className="mt-4">
                             <div className="mb-1 flex justify-between text-xs text-stone-500">
                                 <span>{t("config.localStorage.quotaProgress")}</span>
-                                <span className="tabular-nums">{percent.toFixed(2)}%</span>
+                                <span className="tabular-nums">{percent == null ? t("canvas.projectPage.unknown") : `${percent.toFixed(2)}%`}</span>
                             </div>
-                            <Progress percent={percent} showInfo={false} />
+                            {percent != null ? <Progress percent={percent} showInfo={false} /> : null}
                         </div>
                     </>
                 ) : null}

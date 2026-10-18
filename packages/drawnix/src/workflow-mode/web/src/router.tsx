@@ -4,9 +4,10 @@ import { getWorkflowNavigationSnapshot, navigateWorkflow, subscribeWorkflowNavig
 
 import { AnalyticsTracker } from "@/components/layout/analytics-tracker";
 import UserLayout from "@/layouts/user-layout";
+import { loadCanvasProject } from './canvas-entry-loader';
 const AssetsPage = lazy(() => import("@/pages/assets"));
 const CanvasPage = lazy(() => import("@/pages/canvas"));
-const CanvasProjectPage = lazy(() => import("@/pages/canvas/project"));
+const CanvasProjectPage = lazy(loadCanvasProject);
 const ConfigPage = lazy(() => import("@/pages/config"));
 const DocsPage = lazy(() => import("@/pages/docs"));
 const ImagePage = lazy(() => import("@/pages/image"));

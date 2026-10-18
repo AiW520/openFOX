@@ -5,22 +5,23 @@
       "date": "2026-10-17",
       "changes": {
         "features": [
-          "add dedicated Tuzi Flux 3 image adapter",
-          "补齐 Gemini 别名和 Veo 参数并清理未支持字段",
-          "add new OpenTu creative experience",
-          "initialize OpenTu from Tuzi handoff"
+          "无限画布节点面板支持持久化的列表/缩略图视图、分组折叠、懒加载缩略图和桌面悬停/移动端点击预览，切换视图不改变聚焦、筛选或导出选择。",
+          "首页精选卡片随正式版本自动同步更新摘要与分类详情，过滤未发布和已撤回版本。",
+          "两个画布支持可选的 Real-ESRGAN 图片超分：原图即时保留，支持后台自动超分、手动 2×/4×、高清下载及刷新恢复；需配置独立推理服务后启用。"
         ],
-        "fixes": [
-          "restore automatic image loading",
-          "补齐 Tuzi 模型 ID 的尺寸和画质参数",
-          "align merged Tuzi session sync with postMessage onboarding"
-        ],
+        "fixes": [],
         "improvements": [
-          "preserve publisher, infinite canvas and mobile workspace before upstream sync"
+          "共享画布加载与意图预加载，切换等待时保留当前页面，补齐启动、数据恢复和失败重试提示。",
+          "首页画布选择与创作类型紧凑对齐，优化“自由画布 / 无限画布”的选中样式与手机端间距。",
+          "首页与两个画布的切换入口统一将“工作流画布”更名为“无限画布”。",
+          "自由画布默认明亮主题采用米白底、白色工具栏与浅暖灰点阵，点阵随画布平移和缩放。",
+          "统一 OpenTu 工作台入口，在首页和画布内选择自由画布或无限画布，保留共享模型配置、描述参数传递和画布位置恢复。",
+          "清理已替换的画布原型并隔离共享模型控件与聊天模块，避免首页提前加载聊天依赖。",
+          "适配两个画布的稳定聚焦、缩放无关浮层、参考连线复制和本地存储降级；补齐 Gemini 参考图 MIME 识别、文本卡片复制与已生成图片恢复，避免失败恢复重复生图。"
         ]
       },
       "type": "patch",
-      "highlights": "add dedicated Tuzi Flux 3 image adapter"
+      "highlights": "无限画布节点面板支持持久化的列表/缩略图视图、分组折叠、懒加载缩略图和桌面悬停/移动端点击预览，切换视图不改变聚焦、筛选或导出选择。"
     },
     {
       "version": "1.1.28",

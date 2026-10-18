@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FeaturedContent } from './FeaturedContent';
@@ -123,5 +124,52 @@ describe('featured A1 content carousel', () => {
     expect(primary).toBeTruthy();
     if (primary) fireEvent.click(primary);
     expect(openCanvas).toHaveBeenCalledOnce();
+  });
+
+  it('replaces the guide with the bundled release and shows categorized details', () => {
+    vi.stubGlobal('__HOME_RELEASE_HIGHLIGHTS__', {
+      version: '1.2.0', date: '2026-10-17',
+      groups: [
+        { title: '新增功能', items: ['支持更多图片模型'] },
+        { title: '问题修复', items: ['恢复已保存的项目'] },
+      ],
+    });
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.open = true;
+    });
+    render(<FeaturedContent onOpenCanvas={vi.fn()} />);
+    expect(screen.getAllByRole('button', { name: /^查看/ })).toHaveLength(5);
+    expect(screen.queryByText('创作画布更新')).toBeNull();
+    expect(screen.getByText('支持更多图片模型')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '查看OpenTu v1.2.0' }));
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('heading', { name: '新增功能' })).toBeTruthy();
+    expect(dialog.getByRole('heading', { name: '问题修复' })).toBeTruthy();
+    expect(dialog.getAllByRole('listitem').map((item) => item.textContent))
+      .toEqual(['支持更多图片模型', '恢复已保存的项目']);
+    expect(dialog.getByText('版本更新 · 2026-10-17')).toBeTruthy();
+  });
+
+  it('keeps log markup as text rather than executing it', () => {
+    const text = '<img src=x onerror="alert(1)">';
+    vi.stubGlobal('__HOME_RELEASE_HIGHLIGHTS__', {
+      version: '1.2.0', date: '2026-10-17',
+      groups: [{ title: '问题修复', items: [text] }],
+    });
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.open = true;
+    });
+    render(<FeaturedContent onOpenCanvas={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '查看OpenTu v1.2.0' }));
+    expect(screen.getByRole('listitem').textContent).toBe(text);
+    expect(document.querySelector('img[src="x"]')).toBeNull();
+  });
+
+  it('keeps the generic guide when the build has no eligible release', () => {
+    vi.stubGlobal('__HOME_RELEASE_HIGHLIGHTS__', null);
+    render(<FeaturedContent onOpenCanvas={vi.fn()} />);
+    expect(screen.getByRole('button', { name: '查看创作画布更新' })).toBeTruthy();
+    expect(screen.queryByText('版本更新')).toBeNull();
+    expect(screen.getByText('产品指南', { selector: '.featured-content__badge' })).toBeTruthy();
   });
 });

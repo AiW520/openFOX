@@ -1,4 +1,5 @@
 import Stack from '../../stack';
+import { Sparkles } from 'lucide-react';
 import { FontColorIcon, PropertySettingsIcon } from '../../icons';
 import {
   ATTACHED_ELEMENT_CLASS_NAME,
@@ -2686,6 +2687,8 @@ export const PopupToolbar = () => {
                   ? imageDetailsRequest.sequence : 0}
               />
             )}
+            {state.hasImageDetails && selectedElements[0] && <ToolButton type="icon" icon={<Sparkles size={16} />}
+              tooltip="AI 超分" aria-label="AI 超分" onPointerUp={() => window.dispatchEvent(new CustomEvent('opentu:enhance-image', { detail: selectedElements[0].id }))} />}
           </Stack.Row>
         </Island>
       )}

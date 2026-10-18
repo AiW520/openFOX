@@ -1,3 +1,10 @@
+import type { EnhancementRef } from '../../../../services/image-enhancement';
+
+export type CanvasImageEnhancement = EnhancementRef & {
+    original: { content: string; storageKey?: string; naturalWidth: number; naturalHeight: number; bytes: number; mimeType: string };
+    applied?: boolean;
+};
+
 export type Position = {
     x: number;
     y: number;
@@ -26,6 +33,8 @@ export type CanvasGenerationMode = "text" | "image" | "video" | "audio";
 export type CanvasImageGenerationType = "generation" | "edit";
 
 export type CanvasNodeImage = {
+    enhancementEligibleAt?: number;
+    enhancement?: CanvasImageEnhancement;
     id: string;
     status: CanvasNodeStatus;
     errorDetails?: string;

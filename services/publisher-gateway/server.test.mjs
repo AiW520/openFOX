@@ -106,6 +106,9 @@ async function fixture(t, options = {}) {
     queueWaitMs: options.queueWaitMs,
     queueLimit: options.queueLimit,
     responseBudgetBytes: options.responseBudgetBytes,
+    upscalerUrl: options.upscalerUrl,
+    upscalerToken: options.upscalerToken,
+    fetchEnhancement: options.fetchEnhancement,
     adminPassword: 'test-admin-password-12345', accessCode: 'test-access-code-12345', trustProxy: true,
     fetchUpstream: async (url, init) => {
       calls.push({ url: String(url), init });
@@ -160,6 +163,53 @@ async function waitFor(check) {
 async function usageSnapshot(f) {
   return (await (await f.request('admin/config', { headers: { Cookie: f.admin } })).json()).usage;
 }
+
+test('enhancement is optional and requires a session, origin and task ownership', async t => {
+  const disabled = await fixture(t);
+  assert.equal((await (await disabled.request('enhancement/config')).json()).enabled, false);
+  const f = await fixture(t, { upscalerUrl: 'http://inference.local', upscalerToken: secret,
+    fetchEnhancement: async () => Response.json({ job_id: 'private-job', status: 'queued' }) });
+  const submit = (headers = {}) => f.request('enhancement?scale=4&model=RealESRGAN_x4plus', {
+    method: 'POST', body: Buffer.from('fixture'), headers: { Cookie: f.visitor, 'Idempotency-Key': 'ownership-test', ...headers } });
+  assert.equal((await submit({ Cookie: '' })).status, 401);
+  assert.equal((await submit({ Origin: 'https://attacker.example' })).status, 403);
+  const task = await (await submit()).json();
+  const other = await f.login('tester', '192.0.2.2');
+  assert.equal((await f.request(`enhancement/${task.id}`, { headers: { Cookie: other } })).status, 403);
+  await waitFor(async () => (await (await f.request(`enhancement/${task.id}`, { headers: { Cookie: f.visitor } })).json()).status === 'queued');
+  const cancelled = await f.request(`enhancement/${task.id}/cancel`, { method: 'POST', headers: { Cookie: f.visitor } });
+  assert.equal((await cancelled.json()).status, 'cancelled');
+});
+
+test('enhancement deduplicates submissions, persists exact PNG result and hides inference credentials', async t => {
+  let submitted = 0;
+  const png = Buffer.alloc(24);
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png);
+  png.write('IHDR', 12); png.writeUInt32BE(4096,16); png.writeUInt32BE(4096,20);
+  const f = await fixture(t, { upscalerUrl: 'http://inference.local', upscalerToken: secret,
+    fetchEnhancement: async (url, init) => {
+      assert.equal(init.headers.Authorization, `Bearer ${secret}`);
+      assert.equal(init.redirect, 'error');
+      if (String(url).endsWith('/api/upscale')) { submitted++; assert.equal(init.body.get('resolution'), 'scale'); return Response.json({ job_id: 'persisted-job' }); }
+      if (String(url).endsWith('/status')) return Response.json({ status: 'completed', input_width: 1024, input_height: 1024, output_width: 4096, output_height: 4096, debug: secret });
+      return new Response(png);
+    } });
+  const path = 'enhancement?scale=4&model=RealESRGAN_x4plus';
+  const init = { method: 'POST', headers: { Cookie: f.visitor, 'Idempotency-Key': 'durable-result' }, body: Buffer.from('fixture') };
+  const responses = await Promise.all([f.request(path, init), f.request(path, init)]);
+  const tasks = await Promise.all(responses.map(response => response.json()));
+  assert.equal(tasks[0].id, tasks[1].id);
+  let task;
+  await waitFor(async () => { task = await (await f.request(`enhancement/${tasks[0].id}`, { headers: { Cookie: f.visitor } })).json(); return task.status === 'completed'; });
+  assert.equal(submitted, 1);
+  assert.equal(task.width, 4096); assert.equal(task.height, 4096);
+  assert.ok(!JSON.stringify(task).includes(secret));
+  assert.deepEqual(readFileSync(join(f.dir, 'enhancement', `${task.id}.png`)), png);
+  const download = await f.request(`enhancement/${task.id}/result`, { headers: { Cookie: f.visitor } });
+  assert.equal(download.headers.get('cache-control'), 'private, no-store');
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), png);
+  assert.equal((await f.request(path, { ...init, body: 'different-image' })).status, 409);
+});
 
 test('credentials stay private on public and administrator reads; forwarding attaches server key', async (t) => {
   const f = await fixture(t);

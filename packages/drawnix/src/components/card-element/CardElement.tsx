@@ -4,8 +4,8 @@
  * 使用轻量 MarkdownReadonly 进行 Markdown 内容展示（只读模式）
  * Card 在画布上仅作只读展示，编辑通过知识库进行
  */
-import React, { useCallback } from 'react';
-import { BookOpen } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, BookOpen, Check, Copy } from 'lucide-react';
 import { HoverTip } from '../shared/hover';
 import MarkdownReadonly from '../MarkdownReadonly';
 import {
@@ -14,6 +14,8 @@ import {
   getCardDisplayTitle,
 } from '../../constants/card-colors';
 import type { PlaitCard } from '../../types/card.types';
+import { copyToClipboard } from '../../utils/runtime-helpers';
+import { useTextSelection } from '../../hooks/useTextSelection';
 
 const cardBodyElements = new Map<string, HTMLElement>();
 
@@ -46,6 +48,11 @@ interface CardElementProps {
  * Card 内容组件 - 渲染标题 + MarkdownReadonly 正文（只读）
  */
 export const CardElement: React.FC<CardElementProps> = ({ element }) => {
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  useTextSelection(bodyRef);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  useEffect(() => setCopyStatus('idle'), [element.title, element.body]);
+  const copyLabel = copyStatus === 'copied' ? '已复制' : copyStatus === 'failed' ? '复制失败，请重试' : '复制文本内容';
   const displayTitle = getCardDisplayTitle(element.title);
   const titleColor = getTitleColor(element.fillColor);
   const bodyColor = getBodyColor(element.fillColor);
@@ -76,11 +83,21 @@ export const CardElement: React.FC<CardElementProps> = ({ element }) => {
 
   const stopPointerPropagation = useCallback(
     (e: React.MouseEvent | React.PointerEvent) => {
-      e.preventDefault();
       e.stopPropagation();
     },
     []
   );
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await copyToClipboard(element.title?.trim() ? `${displayTitle}\n\n${element.body}` : element.body);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('failed');
+    }
+  };
 
   return (
     <div
@@ -91,7 +108,7 @@ export const CardElement: React.FC<CardElementProps> = ({ element }) => {
         flexDirection: 'column',
         borderRadius: 8,
         overflow: 'hidden',
-        border: `1.5px solid ${titleColor}`,
+        border: `1px solid ${titleColor}`,
         boxSizing: 'border-box',
         background: bodyColor,
         pointerEvents: 'none',
@@ -102,7 +119,7 @@ export const CardElement: React.FC<CardElementProps> = ({ element }) => {
         style={{
           background: titleColor,
           color: '#fff',
-          padding: '8px 12px',
+          padding: '9px 14px',
           fontSize: 14,
           fontWeight: 600,
           lineHeight: '1.4',
@@ -128,6 +145,12 @@ export const CardElement: React.FC<CardElementProps> = ({ element }) => {
         >
           {displayTitle}
         </span>
+        <HoverTip content={copyLabel} showArrow={false}>
+          <button type="button" aria-label={copyLabel} onMouseDown={stopPointerPropagation} onPointerDown={stopPointerPropagation} onClick={handleCopy}
+            style={{ width: 24, height: 24, padding: 0, border: 'none', borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.16)', color: '#fff', cursor: 'pointer', flexShrink: 0 }}>
+            {copyStatus === 'copied' ? <Check size={14} aria-hidden="true" /> : copyStatus === 'failed' ? <AlertCircle size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+          </button>
+        </HoverTip>
         {hasKnowledgeBaseLink && (
           <HoverTip content="打开知识库笔记" showArrow={false}>
             <button
@@ -157,7 +180,9 @@ export const CardElement: React.FC<CardElementProps> = ({ element }) => {
         )}
       </div>
       <div
+        tabIndex={0}
         ref={(el) => {
+          bodyRef.current = el;
           if (el) cardBodyElements.set(element.id, el);
           else cardBodyElements.delete(element.id);
         }}
@@ -165,6 +190,8 @@ export const CardElement: React.FC<CardElementProps> = ({ element }) => {
           pointerEvents: 'auto',
           flex: 1,
           minHeight: 0,
+          background: 'rgba(255,255,255,0.68)',
+          userSelect: 'text',
           overflowY: 'auto',
         }}
         onMouseDown={(e) => e.stopPropagation()}
