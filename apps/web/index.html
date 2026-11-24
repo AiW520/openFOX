@@ -261,42 +261,56 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 12px;
+        gap: 10px;
         margin-top: 18px;
-        padding: 10px 14px;
-        border-radius: 999px;
-        background: var(--app-boot-accent-soft);
         color: var(--app-boot-accent);
-        font-size: 13px;
-        font-weight: 600;
       }
 
-      .app-boot-progress-track {
+      .app-boot-canvases {
         position: relative;
-        width: min(180px, 42vw);
-        height: 8px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: rgba(243, 156, 18, 0.16);
+        width: 44px;
+        height: 34px;
       }
 
-      .app-boot-progress-fill {
+      .app-boot-canvases > span {
+        --offset: 0px;
         position: absolute;
-        inset: 0 auto 0 0;
-        width: 0%;
-        border-radius: inherit;
-        background: linear-gradient(
-          90deg,
-          rgba(243, 156, 18, 0.72),
-          rgba(243, 156, 18, 1)
-        );
-        box-shadow: 0 0 16px rgba(243, 156, 18, 0.3);
-        transition: width 0.24s ease;
+        left: var(--offset);
+        top: var(--offset);
+        width: 25px;
+        height: 18px;
+        border: 1.5px solid currentColor;
+        border-radius: 4px;
+        background: #fff;
+        transform: rotate(-6deg);
+        animation: app-boot-stack 2.4s ease-in-out infinite;
+      }
+
+      .app-boot-canvases > :nth-child(2) {
+        --offset: 4px;
+        animation-delay: 140ms;
+      }
+
+      .app-boot-canvases > :last-child {
+        --offset: 8px;
+        animation-delay: 280ms;
+        background: linear-gradient(var(--app-boot-accent-soft), var(--app-boot-accent-soft)), white;
+      }
+
+      @keyframes app-boot-stack {
+        0%, 55%, 100% { transform: rotate(-6deg); }
+        25% { transform: translateY(-4px) rotate(-10deg); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .app-boot-canvases > span { animation: none; }
       }
 
       .app-boot-progress-value {
-        min-width: 44px;
-        text-align: right;
+        min-width: 4ch;
+        color: var(--app-boot-text);
+        text-align: left;
+        font: 600 13px/1 system-ui, sans-serif;
         font-variant-numeric: tabular-nums;
       }
 
@@ -453,21 +467,12 @@
       }
 
       html.app-boot-error .app-boot-progress {
-        background: rgba(233, 30, 99, 0.1);
         color: #e91e63;
       }
 
-      html.app-boot-error .app-boot-progress-track {
-        background: rgba(233, 30, 99, 0.16);
-      }
-
-      html.app-boot-error .app-boot-progress-fill {
-        background: linear-gradient(
-          90deg,
-          rgba(233, 30, 99, 0.72),
-          rgba(233, 30, 99, 1)
-        );
-        box-shadow: 0 0 16px rgba(233, 30, 99, 0.22);
+      html.app-boot-error .app-boot-canvases > span,
+      .app-boot-progress[aria-valuenow="100"] .app-boot-canvases > span {
+        animation: none;
       }
 
       @media (max-width: 640px) {
@@ -551,16 +556,14 @@
         <div
           class="app-boot-progress"
           role="progressbar"
+          aria-label="工作台加载进度"
           aria-valuemin="0"
           aria-valuemax="100"
           aria-valuenow="0"
           data-app-boot-progress
         >
-          <span class="app-boot-progress-track" aria-hidden="true">
-            <span
-              class="app-boot-progress-fill"
-              data-app-boot-progress-fill
-            ></span>
+          <span class="app-boot-canvases" aria-hidden="true">
+            <span></span><span></span><span></span>
           </span>
           <span class="app-boot-progress-value" data-app-boot-progress-value>
             0%
@@ -929,9 +932,6 @@
 
         function renderProgress() {
           var progressRoot = document.querySelector('[data-app-boot-progress]');
-          var progressFill = document.querySelector(
-            '[data-app-boot-progress-fill]'
-          );
           var progressValue = document.querySelector(
             '[data-app-boot-progress-value]'
           );
@@ -939,9 +939,6 @@
 
           if (progressRoot) {
             progressRoot.setAttribute('aria-valuenow', String(safeProgress));
-          }
-          if (progressFill) {
-            progressFill.style.width = safeProgress + '%';
           }
           if (progressValue) {
             progressValue.textContent = safeProgress + '%';
